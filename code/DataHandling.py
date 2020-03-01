@@ -46,12 +46,14 @@ class KinshipDataset(Dataset):
     @staticmethod
     def get_pair_label(pair, connections):
         person1, _ = os.path.split(pair[0])
-        family1, _ = os.path.split(person1)
+        family1, person1 = os.path.split(person1)
+        _, family1 = os.path.split(family1)
         person2, _ = os.path.split(pair[1])
-        family2, _ = os.path.split(person2)
+        family2, person2 = os.path.split(person2)
+        _, family2 = os.path.split(family2)
         if person1 == person2:
             return 0
-        return 1 if person2 in connections[person1] else 0
+        return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
     def __init__(self, path, labels_path):
         super(Dataset, self).__init__()
@@ -65,7 +67,8 @@ class KinshipDataset(Dataset):
 
         self.allpairs = []
         for family, f_members in tqdm(self.families.items(), desc="families", total=len(self.families)):
-            for (per1_name, per1_imgs), (per2_name, per2_imgs) in product(f_members.items(), repeat=2):
+            for (per1_name, per1_imgs), (per2_name, per2_imgs) in filter(lambda x: x[0][0] != x[1][0],
+                                                                         product(f_members.items(), repeat=2)):
                 self.allpairs.extend([(pair, self.get_pair_label(pair, connections))
                                       for pair in product(per1_imgs, per2_imgs)])
 
@@ -107,8 +110,12 @@ if __name__ == "__main__":
 
     my_dataset = KinshipDataset.get_dataset("..\\data\\dataset.pkl",
                                             "..\\data\\processed\\train", "..\\data\\raw\\train_relationships.csv")
-    (img1, img2), label = my_dataset[0]
-    img1 = transforms.ToPILImage()(img1)
-    img1.show()
-
+    print("Dataset length:", len(my_dataset))
+    for idx in range(len(my_dataset))[:10]:
+        pair, label = my_dataset[idx]
+        if label == 0:
+            print(pair)
+            to_pil = transforms.ToPILImage()
+            to_pil(pair[0]).show()
+            to_pil(pair[1]).show()
 
