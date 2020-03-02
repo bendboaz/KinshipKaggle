@@ -50,3 +50,24 @@ def summation(x1, x2):
     return x1+x2
 
 
+
+
+# Feature combination naming conventions: starting on the outside and going in
+def sqrt_difference(x1: torch.Tensor, x2: torch.Tensor):
+    return torch.sqrt(x1 - x2)
+
+
+def sqrt_sum(x1: torch.Tensor, x2: torch.Tensor):
+    return torch.sqrt(x1 + x2)
+
+
+def difference_sqrt(x1: torch.Tensor, x2: torch.Tensor):
+    return torch.sqrt(x1) - torch.sqrt(x2)
+
+
+def sum_sqrt(x1: torch.Tensor, x2: torch.Tensor):
+    return torch.sqrt(x1) + torch.sqrt(x2)
+
+
+def difference(x1: torch.Tensor, x2: torch.Tensor):
+    return x1 - x2
