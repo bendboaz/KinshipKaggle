@@ -63,6 +63,18 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     eval_engine = create_supervised_evaluator(model, metrics=dict(accuracy=Accuracy(), cross_entropy=Loss(loss_func)),
                                               device=device, non_blocking=non_blocking)
 
+    ce_history = []
+    acc_history = []
+
+    @train_engine.on(Events.ITERATION_COMPLETED(every=50))
+    def log_iteration_training_metrics(engine):
+        print("Output is:", engine.state.output)
+        x, y, y_pred, loss = engine.state.output
+        ce_history.append(loss)
+        acc_history.append(torch.sum(y == y_pred))
+        print(f"Epoch {engine.state.epoch}, iteration {engine.state.iteration}: "
+              f"acc = {acc_history[-1]}, ce = {ce_history[-1]}")
+
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
         print(f"Finished epoch {engine.state.epoch}")
@@ -70,8 +82,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
               f"Acc = {eval_engine.state.metrics['accuracy']}")
 
-    p_bar = ProgressBar()
-    p_bar.attach(train_engine)
+    p_bar_train = ProgressBar()
+    p_bar_train.attach(train_engine)
 
     print(model)
     print("Running on:", device)
