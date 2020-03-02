@@ -7,8 +7,8 @@ from ignite.metrics import Accuracy, Loss
 from torch.utils.data import DataLoader
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
-from code.Models import KinshipClassifier
-from code.DataHandling import KinshipDataset
+from implementation.Models import KinshipClassifier
+from implementation.DataHandling import KinshipDataset
 
 PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 

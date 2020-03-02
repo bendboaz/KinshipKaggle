@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from facenet_pytorch import InceptionResnetV1
 
-from code.Utils import get_dense_block
+from implementation.Utils import get_dense_block
 
 # Load feature extractors (VGGFace, FaceNet, ResNet on Imagenet)
 
