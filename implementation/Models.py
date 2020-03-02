@@ -1,4 +1,5 @@
 from typing import List, Any
+from collections import OrderedDict
 
 import torch
 from torch import nn
@@ -14,13 +15,15 @@ from implementation.Utils import get_dense_block
 
 
 class PairCombinationModule(nn.Module):
-    def __init__(self, combination_list, input_size) -> None:
+    def __init__(self, combination_list, input_size, state_dict=None) -> None:
         super().__init__()
         self.combinations = combination_list
         self.weights = [nn.Parameter(torch.abs(torch.randn(1)), requires_grad=True) for _ in self.combinations]
         for ind, weight in enumerate(self.weights):
             self.register_parameter(f"combination{ind}_weight", weight)
         self.input_size = input_size
+        if state_dict is not None:
+            self.load_state_dict(state_dict)
 
     def forward(self, x1, x2):
         comb_maps = [(wi * combination(x1, x2)) for wi, combination in zip(self.weights, self.combinations)]
@@ -29,15 +32,29 @@ class PairCombinationModule(nn.Module):
     def output_size(self):
         return self.input_size * len(self.combinations)
 
+    def get_saveable_dictionary(self):
+        return OrderedDict(
+            combination_list=self.combinations,
+            input_size=self.input_size,
+            state_dict=self.state_dict()
+        )
+
+    @classmethod
+    def load_from_dictionary(cls, dictionary):
+        return cls(**dictionary)
+
 
 class KinshipClassifier(nn.Module):
     FACENET_OUT_SIZE = 512
 
     def __init__(self, combination_module, combination_size, simple_fc_sizes: List[int], custom_fc_sizes: List[int],
-                 final_fc_sizes: List[int]) -> None:
+                 final_fc_sizes: List[int], state_dict=None) -> None:
         super().__init__()
         self.combination_module = combination_module
         self.combination_size = combination_size
+        self.simple_fc_sizes = simple_fc_sizes
+        self.custom_fc_sizes = custom_fc_sizes
+        self.final_fc_sizes = final_fc_sizes
 
         self.facenet = InceptionResnetV1(pretrained='vggface2')
         for param in self.facenet.parameters(recurse=True):
@@ -52,6 +69,8 @@ class KinshipClassifier(nn.Module):
         self.final_bn = nn.BatchNorm1d(simple_fc_sizes[-1] + custom_fc_sizes[-1])
         self.classification_fc = get_dense_block(simple_fc_sizes[-1] + custom_fc_sizes[-1], final_fc_sizes + [2],
                                                  nn.ReLU)
+        if state_dict is not None:
+            self.load_state_dict(state_dict)
 
     def forward(self, inputs, **kwargs):
         img1_batch = inputs[:, 0].squeeze(1)
@@ -71,3 +90,19 @@ class KinshipClassifier(nn.Module):
 
         classification = self.classification_fc(concat_vector)
         return classification
+
+    def get_saveable_dictionary(self):
+        return OrderedDict(
+            comb_module_dict=self.combination_module.get_saveable_dictionary(),
+            combination_size=self.combination_size,
+            simple_fc_sizes=self.simple_fc_sizes,
+            custom_fc_sizes=self.custom_fc_sizes,
+            final_fc_sizes=self.final_fc_sizes,
+            state_dict=self.state_dict()
+        )
+
+    @classmethod
+    def load_from_dictionary(cls, dictionary):
+        comb_module = PairCombinationModule.load_from_dictionary(dictionary['comb_module_dict'])
+        del dictionary['comb_module_dict']
+        return cls(comb_module, **dictionary)
