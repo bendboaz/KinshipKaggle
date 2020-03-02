@@ -3,6 +3,7 @@ from numpy.random import permutation
 import numpy as np
 from shutil import copytree
 from torch import nn
+import torch
 
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
@@ -30,3 +31,7 @@ def train_dev_split(raw_path, out_path, train_part):
     for ind, item in enumerate(family_dirs):
         partition = 'train' if ind in train_indices else 'dev'
         copytree(os.path.join(raw_path, item), os.path.join(out_path, partition, item))
+
+
+def simple_concatenation(x1, x2):
+    return torch.cat([x1, x2], dim=1)
