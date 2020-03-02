@@ -17,8 +17,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True, device=None,
                    lr=1e-4, loss_func=None, n_epochs=1, combination_func=simple_concatenation,
                    combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2, simple_fc_layers=None,
-                   custom_fc_layers=None, final_fc_layers=None, normalize_features=True, train_ds_name=None,
-                   dev_ds_name=None):
+                   custom_fc_layers=None, final_fc_layers=None, train_ds_name=None, dev_ds_name=None):
     if device is None:
         device = torch.device('cpu')
 
@@ -40,8 +39,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     if dev_ds_name is None:
         dev_ds_name = 'dev_dataset.pkl'
 
-    model = model_class(combination_func, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers,
-                        normalize_features)
+    model = model_class(combination_func, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers)
 
     data_path = os.path.join(project_path, 'data')
     processed_path = os.path.join(data_path, 'processed')

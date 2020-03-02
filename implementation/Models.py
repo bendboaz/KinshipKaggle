@@ -17,12 +17,12 @@ class KinshipClassifier(nn.Module):
     FACENET_OUT_SIZE = 512
 
     def __init__(self, combination_func, combination_size, simple_fc_sizes: List[int], custom_fc_sizes: List[int],
-                 final_fc_sizes: List[int], normalize_features=True) -> None:
+                 final_fc_sizes: List[int]) -> None:
         super().__init__()
         self.combination_func = combination_func
         self.combination_size = combination_size
 
-        self.facenet = InceptionResnetV1(pretrained='vggface2', normalize_features=normalize_features)
+        self.facenet = InceptionResnetV1(pretrained='vggface2')
         for param in self.facenet.parameters(recurse=True):
             param.requires_grad = False
 
