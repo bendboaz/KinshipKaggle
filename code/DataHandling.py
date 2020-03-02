@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from code.Utils import train_dev_split
 
-# Implement image reading function
 # Implement datasets (train, test, add validation split)
 # Later: augmentations (horizontal flips, color tweaks etc.)
 
@@ -72,13 +71,6 @@ class KinshipDataset(Dataset):
                 self.allpairs.extend([(pair, self.get_pair_label(pair, connections))
                                       for pair in product(per1_imgs, per2_imgs)])
 
-        # self.img2person = {img: person for person, imglist in tqdm(self.per2imgs.items(), total=len(self.per2imgs), desc="dict") for img in imglist}
-        # self.images = list(self.img2person.keys())
-
-        # pairs = list(filter(lambda x: os.path.split(x[0])[0] != os.path.split(x[1])[0],
-        #                     tqdm(product(self.images, repeat=2), desc="product", total=len(self.images)**2)))
-        # self.items = [(pair, self.get_pair_label(pair, connections)) for pair in tqdm(pairs, total=len(pairs), desc="pairs")]
-
     def __getitem__(self, item):
         pair, label = self.allpairs[item]
         path1, path2 = pair
@@ -108,7 +100,7 @@ if __name__ == "__main__":
     raw_train_dataset = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle\\data\\raw\\train\\"
     processed_directory = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle\\data\\processed\\"
 
-    my_dataset = KinshipDataset.get_dataset("..\\data\\dataset.pkl",
+    my_dataset = KinshipDataset.get_dataset("..\\data\\train_dataset.pkl",
                                             "..\\data\\processed\\train", "..\\data\\raw\\train_relationships.csv")
     print("Dataset length:", len(my_dataset))
     for idx in range(len(my_dataset))[:10]:
