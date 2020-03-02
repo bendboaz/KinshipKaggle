@@ -36,23 +36,25 @@ def train_dev_split(raw_path, out_path, train_part):
 def simple_concatenation(x1, x2):
     return torch.cat([x1, x2], dim=1)
 
+
+# Feature combination naming conventions: starting on the outside and going in
 def difference_squared(x1, x2):
     return x1**x1-x2**x2
+
 
 def squared_difference(x1, x2):
     res = x1-x2
     return res**res
 
+
 def multification(x1, x2):
     return x1*x2
+
 
 def summation(x1, x2):
     return x1+x2
 
 
-
-
-# Feature combination naming conventions: starting on the outside and going in
 def sqrt_difference(x1: torch.Tensor, x2: torch.Tensor):
     return torch.sqrt(x1 - x2)
 
