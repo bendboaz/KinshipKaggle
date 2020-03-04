@@ -10,8 +10,12 @@ from torch.utils.data import DataLoader
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.DataHandling import KinshipDataset
 from implementation.Utils import *
+from ax import *
 
 PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
+
+# class opt_parameters:
+#     def __init__(self, ):
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
@@ -66,14 +70,14 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     ce_history = []
     history_max_size = 5000
 
-    @train_engine.on(Events.ITERATION_COMPLETED)
+    @train_engine.on(Events.ITERATION_COMPLETED(every=30))
     def log_iteration_training_metrics(engine):
         nonlocal ce_history
         if len(ce_history) > history_max_size:
             ce_history = ce_history[int(history_max_size)/5:]
         ce_history.append(engine.state.output)
 
-    @train_engine.on(Events.EPOCH_COMPLETED)
+    @train_engine.on(Events.EPOCH_COMPLETED.)
     def plot_metrics(engine):
         plot_metric(ce_history, f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
 
@@ -92,6 +96,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
 
     return model, (ce_history,)
+
+
 
 
 if __name__ == "__main__":
