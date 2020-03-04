@@ -1,10 +1,12 @@
 import os
+import pickle
 from numpy.random import permutation
 import numpy as np
 from shutil import copytree
 from torch import nn
 import torch
 from matplotlib import pyplot as plt
+from ignite.engine import Engine
 
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
@@ -76,6 +78,10 @@ def difference(x1: torch.Tensor, x2: torch.Tensor):
     return x1 - x2
 
 
+feature_combination_list = [difference_squared, squared_difference, multification, summation, sqrt_difference, sqrt_sum,
+                            difference_sqrt, sum_sqrt, difference]
+
+
 def plot_metric(values, title, y_label, **kwargs):
     fig = plt.figure()
     plt.cla()
@@ -86,3 +92,22 @@ def plot_metric(values, title, y_label, **kwargs):
     plt.show()
 
     plt.close(fig)
+
+
+def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
+    with open(os.path.join(experiment_dir, 'model.config'), 'rb') as config_file:
+        config = pickle.load(config_file)
+
+    state_dicts = torch.load(os.path.join(experiment_dir, checkpoint_name), map_location=torch.device(device))
+
+    model = model_class.load_from_config_dict(config)
+    model.load_state_dict(state_dicts['model'])
+    train_engine = Engine(lambda x, y: x)
+    train_engine.load_state_dict(state_dicts['train_engine'])
+    optimizer = torch.optim.AdamW(filter(lambda x: x.requires_grad, model.parameters()))
+    optimizer.load_state_dict(state_dicts['optimizer'])
+    loss_func = nn.CrossEntropyLoss()
+    loss_func.load_state_dict(state_dicts['loss_func'])
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1)
+    lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
+    return model, optimizer, loss_func, lr_scheduler, train_engine
