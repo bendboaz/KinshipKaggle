@@ -83,4 +83,5 @@ def plot_metric(values, title, y_label, **kwargs):
     plt.ylabel(y_label)
     plt.title(title)
     plt.show()
+
     plt.close(fig)
