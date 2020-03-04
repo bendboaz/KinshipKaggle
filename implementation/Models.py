@@ -15,18 +15,22 @@ from implementation.Utils import get_dense_block
 
 
 class PairCombinationModule(nn.Module):
-    def __init__(self, combination_list, input_size, state_dict=None) -> None:
+    def __init__(self, combination_list, input_size, dropout_prob=0.5, state_dict=None) -> None:
         super().__init__()
         self.combinations = combination_list
         self.weights = [nn.Parameter(torch.abs(torch.randn(1)), requires_grad=True) for _ in self.combinations]
         for ind, weight in enumerate(self.weights):
             self.register_parameter(f"combination{ind}_weight", weight)
+
+        self.dropout = nn.Dropout(dropout_prob)
         self.input_size = input_size
         if state_dict is not None:
             self.load_state_dict(state_dict)
 
     def forward(self, x1, x2):
-        comb_maps = [(wi * combination(x1, x2)) for wi, combination in zip(self.weights, self.combinations)]
+        masks = self.dropout(torch.ones(len(self.combinations)))
+        comb_maps = [(mask * wi * combination(x1, x2))
+                     for wi, combination, mask in zip(self.weights, self.combinations, masks)]
         return torch.cat(comb_maps, dim=1)
 
     def output_size(self):
