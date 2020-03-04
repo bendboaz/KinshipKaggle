@@ -1,0 +1,8 @@
+simple_fc - num layers + widths
+custom_fc - num layers + widths
+final_fc - num layers + widths
+comb module - dropout_prob
+lr
+batch size
+n_epochs/threshold
+weight decay

@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Any
+from collections import OrderedDict
 
 import torch
 from torch import nn
@@ -13,16 +14,53 @@ from implementation.Utils import get_dense_block
 # A (generic?) tool to take feature extractors, a combination function and create an end-to-end model.
 
 
+class PairCombinationModule(nn.Module):
+    def __init__(self, combination_list, input_size, dropout_prob=0.5, state_dict=None) -> None:
+        super().__init__()
+        self.combinations = combination_list
+        self.weights = [nn.Parameter(torch.abs(torch.randn(1)), requires_grad=True) for _ in self.combinations]
+        for ind, weight in enumerate(self.weights):
+            self.register_parameter(f"combination{ind}_weight", weight)
+
+        self.dropout = nn.Dropout(dropout_prob)
+        self.input_size = input_size
+        if state_dict is not None:
+            self.load_state_dict(state_dict)
+
+    def forward(self, x1, x2):
+        masks = self.dropout(torch.ones(len(self.combinations)))
+        comb_maps = [(mask * wi * combination(x1, x2))
+                     for wi, combination, mask in zip(self.weights, self.combinations, masks)]
+        return torch.cat(comb_maps, dim=1)
+
+    def output_size(self):
+        return self.input_size * len(self.combinations)
+
+    def get_saveable_dictionary(self):
+        return OrderedDict(
+            combination_list=self.combinations,
+            input_size=self.input_size,
+            state_dict=self.state_dict()
+        )
+
+    @classmethod
+    def load_from_dictionary(cls, dictionary):
+        return cls(**dictionary)
+
+
 class KinshipClassifier(nn.Module):
     FACENET_OUT_SIZE = 512
 
-    def __init__(self, combination_func, combination_size, simple_fc_sizes: List[int], custom_fc_sizes: List[int],
-                 final_fc_sizes: List[int], normalize_features=True) -> None:
+    def __init__(self, combination_module, combination_size, simple_fc_sizes: List[int], custom_fc_sizes: List[int],
+                 final_fc_sizes: List[int], state_dict=None) -> None:
         super().__init__()
-        self.combination_func = combination_func
+        self.combination_module = combination_module
         self.combination_size = combination_size
+        self.simple_fc_sizes = simple_fc_sizes
+        self.custom_fc_sizes = custom_fc_sizes
+        self.final_fc_sizes = final_fc_sizes
 
-        self.facenet = InceptionResnetV1(pretrained='vggface2', normalize_features=normalize_features)
+        self.facenet = InceptionResnetV1(pretrained='vggface2')
         for param in self.facenet.parameters(recurse=True):
             param.requires_grad = False
 
@@ -35,6 +73,8 @@ class KinshipClassifier(nn.Module):
         self.final_bn = nn.BatchNorm1d(simple_fc_sizes[-1] + custom_fc_sizes[-1])
         self.classification_fc = get_dense_block(simple_fc_sizes[-1] + custom_fc_sizes[-1], final_fc_sizes + [2],
                                                  nn.ReLU)
+        if state_dict is not None:
+            self.load_state_dict(state_dict)
 
     def forward(self, inputs, **kwargs):
         img1_batch = inputs[:, 0].squeeze(1)
@@ -46,11 +86,28 @@ class KinshipClassifier(nn.Module):
         simple_branch = torch.cat([img1_features, img2_features], 1)
         simple_branch = F.relu(self.simple_fc(simple_branch))
 
-        custom_branch = self.combination_func(img1_features, img2_features)
-        custom_branch = F.relu(self.custom_fc(custom_branch))
+        custom_branch = self.combination_module(img1_features, img2_features)
+        custom_branch = self.custom_fc(custom_branch)
+        custom_branch = F.relu(custom_branch)
 
         concat_vector = torch.cat([simple_branch, custom_branch], dim=1)
         concat_vector = self.final_bn(concat_vector)
 
         classification = self.classification_fc(concat_vector)
         return classification
+
+    def get_saveable_dictionary(self):
+        return OrderedDict(
+            comb_module_dict=self.combination_module.get_saveable_dictionary(),
+            combination_size=self.combination_size,
+            simple_fc_sizes=self.simple_fc_sizes,
+            custom_fc_sizes=self.custom_fc_sizes,
+            final_fc_sizes=self.final_fc_sizes,
+            state_dict=self.state_dict()
+        )
+
+    @classmethod
+    def load_from_dictionary(cls, dictionary):
+        comb_module = PairCombinationModule.load_from_dictionary(dictionary['comb_module_dict'])
+        del dictionary['comb_module_dict']
+        return cls(comb_module, **dictionary)
