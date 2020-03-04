@@ -76,6 +76,10 @@ def difference(x1: torch.Tensor, x2: torch.Tensor):
     return x1 - x2
 
 
+feature_combination_list = [difference_squared, squared_difference, multification, summation, sqrt_difference, sqrt_sum,
+                            difference_sqrt, sum_sqrt, difference]
+
+
 def plot_metric(values, title, y_label, **kwargs):
     fig = plt.figure()
     plt.cla()

@@ -111,9 +111,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
 if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
-    combinations = [difference_squared, squared_difference, multification, summation, sqrt_difference, sqrt_sum,
-                    difference_sqrt, sum_sqrt, difference]
-    combination_module = PairCombinationModule(combinations, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
+    combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
     model, metrics = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=16, device=device, lr=1e-3,
                                     combination_module=combination_module,
                                     combination_size=combination_module.output_size(), train_ds_name='dev_dataset.pkl')
