@@ -78,6 +78,7 @@ def difference(x1: torch.Tensor, x2: torch.Tensor):
 
 def plot_metric(values, title, y_label, **kwargs):
     fig = plt.figure()
+    plt.cla()
     plt.scatter(range(len(values)), values, **kwargs)
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
