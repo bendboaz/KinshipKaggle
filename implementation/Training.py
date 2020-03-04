@@ -64,16 +64,18 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                               device=device, non_blocking=non_blocking)
 
     ce_history = []
-    acc_history = []
+    history_max_size = 5000
 
-    @train_engine.on(Events.ITERATION_COMPLETED(every=50))
+    @train_engine.on(Events.ITERATION_COMPLETED)
     def log_iteration_training_metrics(engine):
-        print("Output is:", engine.state.output)
-        x, y, y_pred, loss = engine.state.output
-        ce_history.append(loss)
-        acc_history.append(torch.sum(y == y_pred))
-        print(f"Epoch {engine.state.epoch}, iteration {engine.state.iteration}: "
-              f"acc = {acc_history[-1]}, ce = {ce_history[-1]}")
+        nonlocal ce_history
+        if len(ce_history) > history_max_size:
+            ce_history = ce_history[int(history_max_size)/5:]
+        ce_history.append(engine.state.output)
+
+    @train_engine.on(Events.EPOCH_COMPLETED)
+    def plot_metrics(engine):
+        plot_metric(ce_history, f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
 
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
