@@ -4,6 +4,7 @@ import numpy as np
 from shutil import copytree
 from torch import nn
 import torch
+from matplotlib import pyplot as plt
 
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
@@ -39,12 +40,12 @@ def simple_concatenation(x1, x2):
 
 # Feature combination naming conventions: starting on the outside and going in
 def difference_squared(x1, x2):
-    return x1**x1-x2**x2
+    return (x1 ** 2) - (x2 ** 2)
 
 
 def squared_difference(x1, x2):
     res = x1-x2
-    return res**res
+    return res ** 2
 
 
 def multification(x1, x2):
@@ -56,20 +57,29 @@ def summation(x1, x2):
 
 
 def sqrt_difference(x1: torch.Tensor, x2: torch.Tensor):
-    return torch.sqrt(x1 - x2)
+    return torch.sign(x1 - x2) * torch.sqrt(torch.abs(x1 - x2))
 
 
 def sqrt_sum(x1: torch.Tensor, x2: torch.Tensor):
-    return torch.sqrt(x1 + x2)
+    return torch.sign(x1 + x2) * torch.sqrt(torch.sign(x1 + x2))
 
 
 def difference_sqrt(x1: torch.Tensor, x2: torch.Tensor):
-    return torch.sqrt(x1) - torch.sqrt(x2)
+    return torch.sign(x1) * torch.sqrt(torch.abs(x1)) - torch.sign(x2) * torch.sqrt(torch.abs(x2))
 
 
 def sum_sqrt(x1: torch.Tensor, x2: torch.Tensor):
-    return torch.sqrt(x1) + torch.sqrt(x2)
+    return torch.sign(x1) * torch.sqrt(torch.abs(x1)) + torch.sign(x2) * torch.sqrt(torch.abs(x2))
 
 
 def difference(x1: torch.Tensor, x2: torch.Tensor):
     return x1 - x2
+
+
+def plot_metric(values, title, y_label, **kwargs):
+    plt.figure()
+    plt.scatter(range(len(values)), values, **kwargs)
+    plt.xlabel('Iteration')
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.show()

@@ -4,8 +4,8 @@ import torch
 from torch import optim
 from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
 from ignite.metrics import Accuracy, Loss
-from torch.utils.data import DataLoader
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
+from torch.utils.data import DataLoader
 
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.DataHandling import KinshipDataset
@@ -14,8 +14,8 @@ from implementation.Utils import *
 PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
-def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True, device=None,
-                   lr=1e-4, loss_func=None, n_epochs=1, combination_module=simple_concatenation,
+def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
+                   device=None, lr=1e-4, loss_func=None, n_epochs=1, combination_module=simple_concatenation,
                    combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2, simple_fc_layers=None,
                    custom_fc_layers=None, final_fc_layers=None, train_ds_name=None, dev_ds_name=None):
     if device is None:
@@ -82,21 +82,21 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
               f"Acc = {eval_engine.state.metrics['accuracy']}")
 
-    p_bar_train = ProgressBar()
-    p_bar_train.attach(train_engine)
+    train_pbar = ProgressBar()
+    train_pbar.attach(train_engine)
 
     print(model)
     print("Running on:", device)
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
 
-    return model
+    return model, (ce_history,)
 
 
 if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combinations = [difference_squared, squared_difference, multification, summation, sqrt_difference, sqrt_sum,
                     difference_sqrt, sum_sqrt, difference]
-    combination_module = PairCombinationModule(combinations, KinshipClassifier.FACENET_OUT_SIZE)
-    model = finetune_model(KinshipClassifier, PROJECT_ROOT, 32, num_workers=8, device=device,
-                           combination_module=combination_module, combination_size=combination_module.output_size(),
-                           train_ds_name='dev_dataset.pkl')
+    combination_module = PairCombinationModule(combinations, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
+    model, metrics = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=16, device=device, lr=1e-3,
+                                    combination_module=combination_module,
+                                    combination_size=combination_module.output_size(), train_ds_name='dev_dataset.pkl')

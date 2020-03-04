@@ -83,7 +83,8 @@ class KinshipClassifier(nn.Module):
         simple_branch = F.relu(self.simple_fc(simple_branch))
 
         custom_branch = self.combination_module(img1_features, img2_features)
-        custom_branch = F.relu(self.custom_fc(custom_branch))
+        custom_branch = self.custom_fc(custom_branch)
+        custom_branch = F.relu(custom_branch)
 
         concat_vector = torch.cat([simple_branch, custom_branch], dim=1)
         concat_vector = self.final_bn(concat_vector)
