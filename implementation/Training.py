@@ -77,7 +77,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
             ce_history = ce_history[int(history_max_size)/5:]
         ce_history.append(engine.state.output)
 
-    @train_engine.on(Events.EPOCH_COMPLETED.)
+    @train_engine.on(Events.EPOCH_COMPLETED)
     def plot_metrics(engine):
         plot_metric(ce_history, f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
 
