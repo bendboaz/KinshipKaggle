@@ -70,7 +70,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     ce_history = []
     history_max_size = 5000
 
-    @train_engine.on(Events.ITERATION_COMPLETED(every=30))
+    @train_engine.on(Events.ITERATION_COMPLETED(every=30) )
     def log_iteration_training_metrics(engine):
         nonlocal ce_history
         if len(ce_history) > history_max_size:
