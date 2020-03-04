@@ -19,9 +19,10 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, loss_func=None, n_epochs=1, combination_module=simple_concatenation,
-                   combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2, simple_fc_layers=None,
-                   custom_fc_layers=None, final_fc_layers=None, train_ds_name=None, dev_ds_name=None, logging_rate=1):
+                   device=None, lr=1e-4, weight_decay=0, loss_func=None, n_epochs=1,
+                   combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
+                   simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
+                   dev_ds_name=None, logging_rate=-1, compute_final_validation=False):
     if device is None:
         device = torch.device('cpu')
 
@@ -60,26 +61,36 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                          num_workers=num_workers, pin_memory=pin_memory) for partition in datasets}
 
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
-    optimizer = optim.AdamW(params_to_train, lr=lr)
+    optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
     eval_engine = create_supervised_evaluator(model, metrics=dict(accuracy=Accuracy(), cross_entropy=Loss(loss_func)),
                                               device=device, non_blocking=non_blocking)
 
-    ce_history = []
-    history_max_size = 5000
+    metrics = {}
 
-    @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
-    def log_iteration_training_metrics(engine):
-        nonlocal ce_history
-        if len(ce_history) > history_max_size:
-            ce_history = ce_history[int(history_max_size)/5:]
-        ce_history.append(engine.state.output)
+    if logging_rate > 0:
+        history_max_size = 5000
+        metrics['ce_history'] = []
 
-    @train_engine.on(Events.EPOCH_COMPLETED)
-    def plot_metrics(engine):
-        plot_metric(ce_history, f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
+        @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
+        def log_iteration_training_metrics(engine):
+            nonlocal metrics
+            if len(metrics['ce_history']) > history_max_size:
+                metrics['ce_history'] = metrics['ce_history'][int(history_max_size)/5:]
+            metrics['ce_history'].append(engine.state.output)
+
+        @train_engine.on(Events.EPOCH_COMPLETED)
+        def plot_metrics(engine):
+            plot_metric(metrics['ce_history'], f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
+
+    if compute_final_validation:
+
+        @train_engine.on(Events.COMPLETED)
+        def compute_validation_loss(engine):
+            eval_engine.run(dataloaders['dev'])
+            metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
 
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
@@ -95,7 +106,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     print("Running on:", device)
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
 
-    return model, (ce_history,)
+    return model, metrics
 
 
 if __name__ == "__main__":
