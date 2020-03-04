@@ -21,7 +21,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
                    device=None, lr=1e-4, loss_func=None, n_epochs=1, combination_module=simple_concatenation,
                    combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2, simple_fc_layers=None,
-                   custom_fc_layers=None, final_fc_layers=None, train_ds_name=None, dev_ds_name=None):
+                   custom_fc_layers=None, final_fc_layers=None, train_ds_name=None, dev_ds_name=None, logging_rate=1):
     if device is None:
         device = torch.device('cpu')
 
@@ -70,7 +70,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     ce_history = []
     history_max_size = 5000
 
-    @train_engine.on(Events.ITERATION_COMPLETED(every=30) )
+    @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
     def log_iteration_training_metrics(engine):
         nonlocal ce_history
         if len(ce_history) > history_max_size:
@@ -96,8 +96,6 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
 
     return model, (ce_history,)
-
-
 
 
 if __name__ == "__main__":
