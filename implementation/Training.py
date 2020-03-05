@@ -21,7 +21,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, lr_decay=1.0, weight_decay=0.0, loss_func=None, n_epochs=1,
+                   device=None, lr=1e-4, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None, n_epochs=1,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None):
@@ -64,7 +64,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=lr_decay)
+    lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_decay_iters, gamma=lr_decay)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
@@ -104,7 +105,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
               f"Acc = {eval_engine.state.metrics['accuracy']}")
 
-    @train_engine.on(Events.EPOCH_COMPLETED)
+    @train_engine.on(Events.ITERATION_COMPLETED)
     def change_lr(engine):
         lr_scheduler.step()
 
@@ -140,12 +141,12 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr=1e-4, lr_decay=1e-3,
-                          n_epochs=1, weight_decay=1e-4, simple_fc_layers=[512], custom_fc_layers=[512],
+    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr=1e-4, lr_decay=1e-3,
+                          n_epochs=5, weight_decay=1e-4, simple_fc_layers=[512], custom_fc_layers=[2048, 512],
                           final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(),
                           train_ds_name='dev_dataset.pkl', dev_ds_name='dev_dataset.pkl',
-                          pin_memory=True, non_blocking=True, checkpoint_name='iter_checkpoint_1-6.pth',
-                          logging_rate=-1, loss_func=None, saving_rate=2, experiment_name='ex1')
+                          pin_memory=True, non_blocking=True,
+                          logging_rate=10, loss_func=None, saving_rate=10, experiment_name='ex1')
 
 
