@@ -147,6 +147,7 @@ if __name__ == "__main__":
                           combination_size=combination_module.output_size(),
                           train_ds_name='dev_dataset.pkl', dev_ds_name='dev_dataset.pkl',
                           pin_memory=True, non_blocking=True,
-                          logging_rate=10, loss_func=None, saving_rate=10, experiment_name='ex1')
+                          logging_rate=10, loss_func=None, saving_rate=10, experiment_name='ex1',
+                          checkpoint_name='iter_checkpoint_3-1190.pth')
 
 
