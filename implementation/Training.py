@@ -22,7 +22,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None,
+                   device=None, lr=1e-4, max_lr=1e-3, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None,
                    n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
@@ -68,7 +68,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
     lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=lr_decay_iters, gamma=lr_decay)
+    lt_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
+                                               mode='exp_range', gamma=0.95)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
@@ -154,15 +155,96 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     return model, metrics
 
 
+def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
+            device=None, min_lr=1e-10, max_lr=1e+1, lr_increase=1.006, loss_func=None,
+            data_augmentation=True, combination_module=simple_concatenation,
+            combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
+            simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
+            dev_ds_name=None):
+    if device is None:
+        device = torch.device('cpu')
+
+    if loss_func is None:
+        loss_func = torch.nn.CrossEntropyLoss()
+
+    if simple_fc_layers is None:
+        simple_fc_layers = [1024]
+
+    if custom_fc_layers is None:
+        custom_fc_layers = [1024]
+
+    if final_fc_layers is None:
+        final_fc_layers = []
+
+    if train_ds_name is None:
+        train_ds_name = 'train_dataset.pkl'
+
+    if dev_ds_name is None:
+        dev_ds_name = 'dev_dataset.pkl'
+
+    model = model_class(combination_module, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers)
+
+    data_path = os.path.join(project_path, 'data')
+    processed_path = os.path.join(data_path, 'processed')
+
+    dataset_path = os.path.join(data_path, train_ds_name)
+    raw_path = os.path.join(processed_path, 'train')
+    relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
+    dataset = KinshipDataset.get_dataset(dataset_path, raw_path, relationships_path, data_augmentation)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                            pin_memory=pin_memory)
+
+    params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
+    optimizer = optim.AdamW(params_to_train, lr=min_lr)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=lr_increase)
+    assert isinstance(lr_scheduler, torch.optim.lr_scheduler._LRScheduler)
+
+    train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
+                                             non_blocking=non_blocking)
+
+    lr_list = []
+    loss_list = []
+    current_lr = min_lr
+    max_loss = 10.0
+
+    @train_engine.on(Events.ITERATION_COMPLETED)
+    def increment_lr_and_log(engine):
+        nonlocal current_lr
+        lr_list.append(current_lr)
+        loss_list.append(engine.state.output)
+        lr_scheduler.step()
+        if loss_list[-1] >= max_loss or lr_list[-1] >= max_lr:
+            engine.should_terminate = True
+        current_lr *= lr_increase
+
+    train_pbar = ProgressBar()
+    train_pbar.attach(train_engine)
+
+    train_engine.run(dataloader, max_epochs=4)
+
+    plt.figure()
+    plt.semilogx(lr_list, loss_list)
+    plt.xlabel('LR')
+    plt.ylabel('CE')
+    plt.show()
+
+    return lr_list, loss_list
+
+
 if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr=1e-4, lr_decay=5e-3,
-                          lr_decay_iters=None, n_epochs=5, weight_decay=1e-4, simple_fc_layers=[512],
-                          custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
-                          combination_size=combination_module.output_size(), data_augmentation=False,
-                          train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
-                          pin_memory=True, non_blocking=True,
-                          logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
+    # _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr=1e-4, lr_decay=5e-3,
+    #                       lr_decay_iters=None, n_epochs=5, weight_decay=1e-4, simple_fc_layers=[512],
+    #                       custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
+    #                       combination_size=combination_module.output_size(), data_augmentation=False,
+    #                       train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+    #                       pin_memory=True, non_blocking=True,
+    #                       logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
+    lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr_increase=1.02,
+                          simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
+                          combination_module=combination_module, combination_size=combination_module.output_size(),
+                          data_augmentation=False, train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+                          pin_memory=True, non_blocking=True)
 
 
