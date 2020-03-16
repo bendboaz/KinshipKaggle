@@ -54,10 +54,11 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path):
+    def __init__(self, path, labels_path, data_augmentation=True):
         super(Dataset, self).__init__()
         self.path = path
         self.families = read_train_dataset(path)
+        self.data_augmentation = data_augmentation
         labels = pd.read_csv(labels_path)
         connections = defaultdict(list)
         for _, (per1, per2) in labels.iterrows():
@@ -74,8 +75,20 @@ class KinshipDataset(Dataset):
     def __getitem__(self, item):
         pair, label = self.allpairs[item]
         path1, path2 = pair
-        img1 = transforms.ToTensor()(Image.open(path1))
-        img2 = transforms.ToTensor()(Image.open(path2))
+        if self.data_augmentation:
+            face_transforms = transforms.Compose([
+                transforms.ColorJitter(brightness=0, contrast=0, saturation=0, hue=0),
+                transforms.RandomHorizontalFlip(p=0.2),
+                transforms.RandomRotation([-30, 30]),
+                transforms.ToTensor(),
+                transforms.RandomErasing(p=0.3)
+            ])
+        else:
+            face_transforms = transforms.ToTensor()
+
+        img1 = face_transforms(Image.open(path1))
+        img2 = face_transforms(Image.open(path2))
+
         return torch.stack([img1, img2]), label
 
     def __len__(self):

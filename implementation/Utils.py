@@ -6,7 +6,7 @@ from shutil import copytree
 from torch import nn
 import torch
 from matplotlib import pyplot as plt
-from ignite.engine import Engine
+from ignite.engine import Engine, create_supervised_trainer
 
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
@@ -102,12 +102,13 @@ def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
 
     model = model_class.load_from_config_dict(config)
     model.load_state_dict(state_dicts['model'])
-    train_engine = Engine(lambda x, y: x)
-    train_engine.load_state_dict(state_dicts['train_engine'])
+    model.to(device)
     optimizer = torch.optim.AdamW(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer.load_state_dict(state_dicts['optimizer'])
     loss_func = nn.CrossEntropyLoss()
     loss_func.load_state_dict(state_dicts['loss_func'])
+    train_engine = create_supervised_trainer(model, optimizer, loss_func, device, non_blocking=True)
+    train_engine.load_state_dict(state_dicts['train_engine'])
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1)
     lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
     return model, optimizer, loss_func, lr_scheduler, train_engine
