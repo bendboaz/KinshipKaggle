@@ -80,7 +80,8 @@ class KinshipDataset(Dataset):
                 transforms.ColorJitter(brightness=0, contrast=0, saturation=0, hue=0),
                 transforms.RandomHorizontalFlip(p=0.2),
                 transforms.RandomRotation([-30, 30]),
-                transforms.ToTensor()
+                transforms.ToTensor(),
+                transforms.RandomErasing(p=0.3)
             ])
         else:
             face_transforms = transforms.ToTensor()
