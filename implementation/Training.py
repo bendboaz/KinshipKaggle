@@ -59,7 +59,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
     datasets = {partition: KinshipDataset.get_dataset(dataset_paths[partition], raw_paths[partition],
-                                                      relationships_path, data_augmentation) for partition in raw_paths}
+                                                      relationships_path, data_augmentation and (partition == 'train'))
+                for partition in raw_paths}
 
     dataloaders = {partition: DataLoader(datasets[partition], batch_size=batch_size, shuffle=(partition == 'train'),
                                          num_workers=num_workers, pin_memory=pin_memory) for partition in datasets}
