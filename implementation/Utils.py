@@ -85,7 +85,8 @@ feature_combination_list = [difference_squared, squared_difference, multificatio
 def plot_metric(values, title, y_label, **kwargs):
     fig = plt.figure()
     plt.cla()
-    plt.scatter(range(len(values)), values, **kwargs)
+    # plt.scatter(range(len(values)), values, **kwargs)
+    plt.plot(range(len(values)), values, **kwargs)
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)
@@ -109,6 +110,6 @@ def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
     loss_func.load_state_dict(state_dicts['loss_func'])
     train_engine = create_supervised_trainer(model, optimizer, loss_func, device, non_blocking=True)
     train_engine.load_state_dict(state_dicts['train_engine'])
-    lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer)
+    lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, last_epoch=train_engine.state.epoch)
     lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
     return model, optimizer, loss_func, lr_scheduler, train_engine
