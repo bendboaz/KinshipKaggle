@@ -22,8 +22,8 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, max_lr=1e-3, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None,
-                   n_epochs=1, patience=-1, data_augmentation=True,
+                   device=None, lr=1e-4, max_lr=1e-3, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0,
+                   loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None):
@@ -68,8 +68,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
     lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
-    lt_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
-                                               mode='exp_range', gamma=0.95)
+    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
+                                               mode='exp_range', gamma=0.9, cycle_momentum=False)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
@@ -114,6 +114,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
         print(f"Finished epoch {engine.state.epoch}")
+        if train_ds_name == dev_ds_name:
+            print(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
+            metrics['final_dev_loss'] = engine.state.output
+            return
         eval_engine.run(dataloaders['dev'])
         metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
@@ -146,7 +150,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_pbar.attach(train_engine)
 
     eval_pbar = ProgressBar(desc="Evaluation")
-    eval_pbar.attach(eval_engine, ['cross_entropy', 'accuracy'])
+    eval_pbar.attach(eval_engine)
 
     print(model)
     print("Running on:", device)
@@ -217,10 +221,18 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
             engine.should_terminate = True
         current_lr *= lr_increase
 
+    @train_engine.on(Events.EPOCH_COMPLETED)
+    def plot_losses(engine):
+        plt.figure()
+        plt.semilogx(lr_list, loss_list)
+        plt.xlabel('LR')
+        plt.ylabel('CE')
+        plt.show()
+
     train_pbar = ProgressBar()
     train_pbar.attach(train_engine)
 
-    train_engine.run(dataloader, max_epochs=4)
+    train_engine.run(dataloader, max_epochs=8)
 
     plt.figure()
     plt.semilogx(lr_list, loss_list)
