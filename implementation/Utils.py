@@ -109,6 +109,6 @@ def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
     loss_func.load_state_dict(state_dicts['loss_func'])
     train_engine = create_supervised_trainer(model, optimizer, loss_func, device, non_blocking=True)
     train_engine.load_state_dict(state_dicts['train_engine'])
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1)
+    lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer)
     lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
     return model, optimizer, loss_func, lr_scheduler, train_engine
