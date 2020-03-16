@@ -22,8 +22,8 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, max_lr=1e-3, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None,
-                   n_epochs=1, patience=-1, data_augmentation=True,
+                   device=None, lr=1e-4, max_lr=1e-3, lr_gamma=0.9, lr_decay_iters=None, weight_decay=0.0,
+                   loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None):
@@ -68,8 +68,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
     lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
-    lt_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
-                                               mode='exp_range', gamma=0.95)
+    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
+                                               mode='exp_range', gamma=lr_gamma, cycle_momentum=False)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
@@ -114,6 +114,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
         print(f"Finished epoch {engine.state.epoch}")
+        if train_ds_name == dev_ds_name:
+            print(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
+            metrics['final_dev_loss'] = engine.state.output
+            return
         eval_engine.run(dataloaders['dev'])
         metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
@@ -146,7 +150,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_pbar.attach(train_engine)
 
     eval_pbar = ProgressBar(desc="Evaluation")
-    eval_pbar.attach(eval_engine, ['cross_entropy', 'accuracy'])
+    eval_pbar.attach(eval_engine)
 
     print(model)
     print("Running on:", device)
@@ -156,7 +160,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
 
 def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-            device=None, min_lr=1e-10, max_lr=1e+1, lr_increase=1.006, loss_func=None,
+            device=None, min_lr=1e-10, max_lr=1e+1, lr_increase=1.006, loss_func=None, beta=0.98,
             data_augmentation=True, combination_module=simple_concatenation,
             combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
             simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
@@ -204,29 +208,46 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
 
     lr_list = []
     loss_list = []
+    avg_loss = 0.0
+    smoothed_loss_list = []
     current_lr = min_lr
     max_loss = 10.0
 
     @train_engine.on(Events.ITERATION_COMPLETED)
-    def increment_lr_and_log(engine):
+    def increment_lr_and_log(engine: Engine):
         nonlocal current_lr
+        nonlocal avg_loss
         lr_list.append(current_lr)
         loss_list.append(engine.state.output)
+        avg_loss = (avg_loss * beta) + (loss_list[-1] * (1 - beta))
+        smoothed_loss_list.append(avg_loss / (1 - (beta ** len(lr_list))))
         lr_scheduler.step()
-        if loss_list[-1] >= max_loss or lr_list[-1] >= max_lr:
+        passed_max_loss = loss_list[-1] >= max_loss
+        passed_max_lr = lr_list[-1] >= max_lr
+        stop_conditions = {'max_loss': passed_max_loss, 'max_lr': passed_max_lr}
+        if any([item for _, item in stop_conditions.items()]):
+            print("Stopping the computation. Stop reasons:")
+            print(stop_conditions)
+            plt.figure()
+            plt.semilogx(lr_list, smoothed_loss_list)
+            plt.xlabel('LR')
+            plt.ylabel('CE')
+            plt.show()
             engine.should_terminate = True
         current_lr *= lr_increase
+
+    @train_engine.on(Events.EPOCH_COMPLETED)
+    def plot_losses(engine):
+        plt.figure()
+        plt.semilogx(lr_list, smoothed_loss_list)
+        plt.xlabel('LR')
+        plt.ylabel('CE')
+        plt.show()
 
     train_pbar = ProgressBar()
     train_pbar.attach(train_engine)
 
     train_engine.run(dataloader, max_epochs=4)
-
-    plt.figure()
-    plt.semilogx(lr_list, loss_list)
-    plt.xlabel('LR')
-    plt.ylabel('CE')
-    plt.show()
 
     return lr_list, loss_list
 
@@ -241,10 +262,9 @@ if __name__ == "__main__":
     #                       train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
     #                       pin_memory=True, non_blocking=True,
     #                       logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
-    lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr_increase=1.02,
-                          simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
+    lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
+                          min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
                           combination_module=combination_module, combination_size=combination_module.output_size(),
                           data_augmentation=False, train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
                           pin_memory=True, non_blocking=True)
-
 
