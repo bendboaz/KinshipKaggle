@@ -4,7 +4,7 @@ import pickle
 import torch
 from torch import optim
 from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
-from ignite.metrics import Accuracy, Loss
+from ignite.metrics import Accuracy, Loss, RunningAverage
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 from ignite.handlers.checkpoint import ModelCheckpoint
 from ignite.handlers import EarlyStopping, TerminateOnNan
@@ -90,16 +90,25 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
         @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
         def log_iteration_training_metrics(engine):
-            if not isinstance(engine.state.output, float):
-                print(f"Encountered unxepected loss value: {engine.state.output} in iteration {engine.state.iteration}")
             nonlocal metrics
             if len(metrics['ce_history']) > history_max_size:
                 metrics['ce_history'] = metrics['ce_history'][int(history_max_size)/5:]
             metrics['ce_history'].append(engine.state.output)
 
+        beta = 0.98
+        avg_loss = 0.0
+        metrics['smoothed_loss_history'] = []
+
+        @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
+        def log_smoothed_lr(engine: Engine):
+            nonlocal avg_loss
+            avg_loss = (avg_loss * beta) + (engine.state.output * (1 - beta))
+            metrics['smoothed_loss_history'].append(
+                avg_loss / (1 - (beta ** (len(metrics['smoothed_loss_history']) + 1))))
+
         @train_engine.on(Events.EPOCH_COMPLETED)
         def plot_metrics(engine):
-            plot_metric(metrics['ce_history'], f"CE loss after epoch #{engine.state.epoch}", "Cross Entropy")
+            plot_metric(metrics['smoothed_loss_history'], f"Smoothed loss epoch #{engine.state.epoch}", "Cross Entropy")
 
     if patience >= 0:
         # Add early stopping handler
@@ -255,16 +264,17 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
 if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-    # _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr=1e-4, lr_decay=5e-3,
-    #                       lr_decay_iters=None, n_epochs=5, weight_decay=1e-4, simple_fc_layers=[512],
-    #                       custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
-    #                       combination_size=combination_module.output_size(), data_augmentation=False,
-    #                       train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
-    #                       pin_memory=True, non_blocking=True,
-    #                       logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
-    lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
-                          min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
-                          combination_module=combination_module, combination_size=combination_module.output_size(),
-                          data_augmentation=False, train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
-                          pin_memory=True, non_blocking=True)
+    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device,
+                          lr=3e-4, max_lr=9e-3, lr_gamma=0.9, lr_decay_iters=95,
+                          n_epochs=10, weight_decay=1e-4, simple_fc_layers=[512],
+                          custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
+                          combination_size=combination_module.output_size(), data_augmentation=False,
+                          train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+                          pin_memory=True, non_blocking=True,
+                          logging_rate=5, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
+    # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
+    #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
+    #                       combination_module=combination_module, combination_size=combination_module.output_size(),
+    #                       data_augmentation=False, train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+    #                       pin_memory=True, non_blocking=True)
 
