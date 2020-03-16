@@ -23,7 +23,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
                    device=None, lr=1e-4, lr_decay=1.0, lr_decay_iters=None, weight_decay=0.0, loss_func=None,
-                   n_epochs=1, patience=-1,
+                   n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None):
@@ -59,7 +59,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
     datasets = {partition: KinshipDataset.get_dataset(dataset_paths[partition], raw_paths[partition],
-                                                      relationships_path) for partition in raw_paths}
+                                                      relationships_path, data_augmentation) for partition in raw_paths}
 
     dataloaders = {partition: DataLoader(datasets[partition], batch_size=batch_size, shuffle=(partition == 'train'),
                                          num_workers=num_workers, pin_memory=pin_memory) for partition in datasets}
@@ -159,9 +159,9 @@ if __name__ == "__main__":
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device, lr=1e-4, lr_decay=5e-3,
                           lr_decay_iters=None, n_epochs=5, weight_decay=1e-4, simple_fc_layers=[512],
                           custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
-                          combination_size=combination_module.output_size(),
+                          combination_size=combination_module.output_size(), data_augmentation=False,
                           train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
                           pin_memory=True, non_blocking=True,
-                          logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3')
+                          logging_rate=10, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
 
 

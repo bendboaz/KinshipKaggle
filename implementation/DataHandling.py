@@ -95,13 +95,15 @@ class KinshipDataset(Dataset):
         return len(self.allpairs)
 
     @classmethod
-    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None):
+    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
-                return pickle.load(f)
-        dataset = cls(raw_path, labels_path)
-        with open(pickled_path, 'wb+') as f:
-            pickle.dump(dataset, f)
+                dataset = pickle.load(f)
+        else:
+            dataset = cls(raw_path, labels_path)
+            with open(pickled_path, 'wb+') as f:
+                pickle.dump(dataset, f)
+        dataset.data_augmentation = data_augmentation
         return dataset
 
 
