@@ -26,7 +26,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
-                   dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None):
+                   dev_ds_name=None, logging_rate=-1, saving_rate=-1, history_size=None, experiment_name=None,
+                   checkpoint_name=None):
     if device is None:
         device = torch.device('cpu')
 
@@ -85,19 +86,15 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     metrics = {}
 
     if logging_rate > 0:
-        history_max_size = 5000
+        beta = 0.98
+        avg_loss = 0.0
+        metrics['smoothed_loss_history'] = []
         metrics['ce_history'] = []
 
         @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
         def log_iteration_training_metrics(engine):
             nonlocal metrics
-            if len(metrics['ce_history']) > history_max_size:
-                metrics['ce_history'] = metrics['ce_history'][int(history_max_size)/5:]
             metrics['ce_history'].append(engine.state.output)
-
-        beta = 0.98
-        avg_loss = 0.0
-        metrics['smoothed_loss_history'] = []
 
         @train_engine.on(Events.ITERATION_COMPLETED(every=logging_rate))
         def log_smoothed_lr(engine: Engine):
@@ -108,7 +105,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
         @train_engine.on(Events.EPOCH_COMPLETED)
         def plot_metrics(engine):
-            plot_metric(metrics['smoothed_loss_history'], f"Smoothed loss epoch #{engine.state.epoch}", "Cross Entropy")
+            plot_metric(metrics['smoothed_loss_history'], f"Smoothed loss epoch #{engine.state.epoch}", "Cross Entropy",
+                        index_scale=logging_rate)
 
     if patience >= 0:
         # Add early stopping handler
@@ -148,7 +146,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         with open(os.path.join(experiment_path, 'model.config'), 'wb+') as config_file:
             pickle.dump(model.get_configuration(), config_file)
 
-        checkpointer = ModelCheckpoint(experiment_path, 'iter', n_saved=50,
+        checkpointer = ModelCheckpoint(experiment_path, 'iter', n_saved=history_size,
                                        global_step_transform=lambda engine, _:
                                        f"{engine.state.epoch}-{engine.state.iteration}", require_empty=False)
         train_engine.add_event_handler(Events.ITERATION_COMPLETED(every=saving_rate), checkpointer,
@@ -174,6 +172,9 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
             combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
             simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
             dev_ds_name=None):
+    """
+    Algorithm to find optimal lr, based on an algorithm from somewhere I lost the link to.
+    """
     if device is None:
         device = torch.device('cpu')
 
@@ -270,8 +271,8 @@ if __name__ == "__main__":
                           custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=False,
                           train_ds_name='mini_dataset.pkl', dev_ds_name='mini_dataset.pkl',
-                          pin_memory=True, non_blocking=True,
-                          logging_rate=5, loss_func=None, saving_rate=100, experiment_name='ex3_no_aug')
+                          pin_memory=True, non_blocking=True, saving_rate=1, experiment_name='find_nan', history_size=1,
+                          logging_rate=5, loss_func=None)
     # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
     #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
     #                       combination_module=combination_module, combination_size=combination_module.output_size(),
