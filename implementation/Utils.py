@@ -82,11 +82,11 @@ feature_combination_list = [difference_squared, squared_difference, multificatio
                             difference_sqrt, sum_sqrt, difference]
 
 
-def plot_metric(values, title, y_label, **kwargs):
+def plot_metric(values, title, y_label, index_scale=1, **kwargs):
     fig = plt.figure()
     plt.cla()
     # plt.scatter(range(len(values)), values, **kwargs)
-    plt.plot(range(len(values)), values, **kwargs)
+    plt.plot(range(len(values) * index_scale, step=index_scale), values, **kwargs)
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)
