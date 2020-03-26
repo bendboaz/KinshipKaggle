@@ -22,7 +22,7 @@ PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, lr=1e-4, max_lr=1e-3, lr_gamma=0.9, lr_decay_iters=None, weight_decay=0.0,
+                   device=None, base_lr=1e-4, max_lr=1e-3, lr_gamma=0.9, lr_decay_iters=None, weight_decay=0.0,
                    loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
@@ -67,9 +67,9 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                          num_workers=num_workers, pin_memory=pin_memory) for partition in datasets}
 
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
-    optimizer = optim.AdamW(params_to_train, lr=lr, weight_decay=weight_decay)
+    optimizer = optim.AdamW(params_to_train, lr=base_lr, weight_decay=weight_decay)
     lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
-    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=lr, max_lr=max_lr, step_size_up=lr_decay_iters//2,
+    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, step_size_up=lr_decay_iters // 2,
                                                mode='exp_range', gamma=lr_gamma, cycle_momentum=False)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device,
-                          lr=3e-4, max_lr=9e-3, lr_gamma=0.9, lr_decay_iters=95,
+                          base_lr=3e-4, max_lr=9e-3, lr_gamma=0.9, lr_decay_iters=95,
                           n_epochs=10, weight_decay=1e-4, simple_fc_layers=[512],
                           custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=True,
