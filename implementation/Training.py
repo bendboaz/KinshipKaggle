@@ -3,12 +3,14 @@ import pickle
 
 import torch
 from torch import optim
+from torch.utils.data import DataLoader
+
 from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
 from ignite.metrics import Accuracy, Loss, RunningAverage
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 from ignite.handlers.checkpoint import ModelCheckpoint
 from ignite.handlers import EarlyStopping, TerminateOnNan
-from torch.utils.data import DataLoader
+from ignite.contrib.engines import common
 
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.DataHandling import KinshipDataset
@@ -26,8 +28,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
-                   dev_ds_name=None, logging_rate=-1, saving_rate=-1, history_size=None, experiment_name=None,
-                   checkpoint_name=None):
+                   dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
+                   hof_size=1):
     if device is None:
         device = torch.device('cpu')
 
@@ -109,14 +111,11 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                         "Cross Entropy", index_scale=logging_rate)
 
     if patience >= 0:
-        # Add early stopping handler
-        es_handler = EarlyStopping(patience=patience,
-                                   score_function=lambda engine: -engine.state.metrics['cross_entropy'],
-                                   trainer=train_engine)
-        eval_engine.add_event_handler(Events.COMPLETED, es_handler)
+        common.add_early_stopping_by_val_score(patience, eval_engine, train_engine, 'accuracy')
 
-    nan_terminate = TerminateOnNan()
-    train_engine.add_event_handler(Events.ITERATION_COMPLETED, nan_terminate)
+    # Replaced by setup_common_training_handlers
+    # nan_terminate = TerminateOnNan()
+    # train_engine.add_event_handler(Events.ITERATION_COMPLETED, nan_terminate)
 
     @train_engine.on(Events.EPOCH_COMPLETED)
     def print_training_metrics(engine):
@@ -130,9 +129,13 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
               f"Acc = {eval_engine.state.metrics['accuracy']}")
 
-    @train_engine.on(Events.ITERATION_COMPLETED)
-    def change_lr(engine):
-        lr_scheduler.step()
+    # Replaced by setup_common_training_handlers
+    # @train_engine.on(Events.ITERATION_COMPLETED)
+    # def change_lr(engine):
+    #     lr_scheduler.step()
+
+    to_save = None
+    output_path = None
 
     if saving_rate > 0:
         if experiment_name is None:
@@ -146,17 +149,34 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         with open(os.path.join(experiment_path, 'model.config'), 'wb+') as config_file:
             pickle.dump(model.get_configuration(), config_file)
 
-        checkpointer = ModelCheckpoint(experiment_path, 'iter', n_saved=50,
-                                       global_step_transform=lambda engine, _:
-                                       f"{engine.state.epoch}-{engine.state.iteration}", require_empty=False)
-        train_engine.add_event_handler(Events.ITERATION_COMPLETED(every=saving_rate), checkpointer,
-                                       {'model': model, 'optimizer': optimizer, 'loss_func': loss_func,
-                                        'lr_scheduler': lr_scheduler, 'train_engine': train_engine})
+        to_save = {'model': model,
+                   'optimizer': optimizer,
+                   'loss_func': loss_func,
+                   'lr_scheduler': lr_scheduler,
+                   'train_engine': train_engine}
+        output_path = experiment_path
 
-    train_pbar = ProgressBar()
-    train_pbar.attach(train_engine)
+        best_models_dir = os.path.join(output_path, 'best_models')
+        if not os.path.isdir(best_models_dir):
+            os.mkdir(best_models_dir)
+        common.save_best_model_by_val_score(best_models_dir, eval_engine, model, 'accuracy', n_saved=hof_size,
+                                            trainer=train_engine, tag='acc')
 
-    eval_pbar = ProgressBar(desc="Evaluation")
+        # Replaced by setup_common_training_handlers
+        # checkpointer = ModelCheckpoint(experiment_path, 'iter', n_saved=50,
+        #                                global_step_transform=lambda engine, _:
+        #                                f"{engine.state.epoch}-{engine.state.iteration}", require_empty=False)
+        # train_engine.add_event_handler(Events.ITERATION_COMPLETED(every=saving_rate), checkpointer, to_save)
+
+    common.setup_common_training_handlers(train_engine, to_save=to_save, save_every_iters=saving_rate,
+                                          output_path=output_path, lr_scheduler=lr_scheduler, with_pbars=True,
+                                          with_pbar_on_iters=True, log_every_iters=1, device=device)
+
+    # Replaced by setup_common_training_handlers
+    # train_pbar = ProgressBar()
+    # train_pbar.attach(train_engine)
+    #
+    eval_pbar = ProgressBar(persist=False, desc="Evaluation")
     eval_pbar.attach(eval_engine)
 
     print(model)
@@ -264,12 +284,12 @@ if __name__ == "__main__":
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device,
                           base_lr=3e-4, max_lr=9e-3, lr_gamma=0.9, lr_decay_iters=95,
-                          n_epochs=10, weight_decay=1e-4, simple_fc_layers=[512],
+                          n_epochs=10, weight_decay=3e-4, simple_fc_layers=[512],
                           custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=True,
-                          train_ds_name='dev_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+                          train_ds_name='train_dataset.pkl', dev_ds_name='mini_dataset.pkl',
                           pin_memory=True, non_blocking=True, logging_rate=10, loss_func=None,
-                          saving_rate=100, history_size=10, experiment_name='no_finetuning')
+                          saving_rate=500, experiment_name='big_train', hof_size=6)
     # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
     #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
     #                       combination_module=combination_module, combination_size=combination_module.output_size(),
