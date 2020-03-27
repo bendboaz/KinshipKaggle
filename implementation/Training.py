@@ -195,6 +195,9 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
             combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
             simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
             dev_ds_name=None):
+    """
+    Algorithm to find optimal lr, based on an algorithm from somewhere I lost the link to.
+    """
     if device is None:
         device = torch.device('cpu')
 
