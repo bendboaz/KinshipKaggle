@@ -2,7 +2,7 @@ from implementation.DataHandling import *
 from implementation.Training import PROJECT_ROOT
 
 if __name__ == "__main__":
-    datasets = ['mini']
+    datasets = ['train', 'dev', 'mini']
     data_path = os.path.join(PROJECT_ROOT, 'data')
     proc_path = os.path.join(data_path, 'processed')
     relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
