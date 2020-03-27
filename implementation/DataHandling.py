@@ -32,7 +32,7 @@ def read_train_dataset(path):
             person_name = f"{family}/{person}"
             person_path = os.path.join(family_path, person)
             for img in os.listdir(person_path):
-                dataset[family][person_name].append(os.path.join(person_path, img))
+                dataset[family][person_name].append(os.path.join(family, person, img))
 
     return dataset
 
@@ -46,10 +46,8 @@ class KinshipDataset(Dataset):
     def get_pair_label(pair, connections):
         person1, _ = os.path.split(pair[0])
         family1, person1 = os.path.split(person1)
-        _, family1 = os.path.split(family1)
         person2, _ = os.path.split(pair[1])
         family2, person2 = os.path.split(person2)
-        _, family2 = os.path.split(family2)
         if person1 == person2:
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
@@ -86,19 +84,27 @@ class KinshipDataset(Dataset):
         else:
             face_transforms = transforms.ToTensor()
 
-        img1 = face_transforms(Image.open(path1))
-        img2 = face_transforms(Image.open(path2))
+        img1 = face_transforms(Image.open(os.path.join(self.path, path1)))
+        img2 = face_transforms(Image.open(os.path.join(self.path, path2)))
 
         return torch.stack([img1, img2]), label
 
     def __len__(self):
         return len(self.allpairs)
 
+    def to_relative_paths(self):
+        if self.allpairs[0][0].find(self.path) != 0:
+            return
+        relative_start = len(self.path)
+        self.allpairs = list(map(lambda pair, label: ((pair[0][relative_start:], pair[1][relative_start:]), label),
+                                 self.allpairs))
+
     @classmethod
     def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
+            dataset.to_relative_paths()
         else:
             dataset = cls(raw_path, labels_path)
             with open(pickled_path, 'wb+') as f:
