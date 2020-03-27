@@ -46,10 +46,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         final_fc_layers = []
 
     if train_ds_name is None:
-        train_ds_name = 'train_dataset.pkl'
+        train_ds_name = 'train'
 
     if dev_ds_name is None:
-        dev_ds_name = 'dev_dataset.pkl'
+        dev_ds_name = 'dev'
 
     if checkpoint_exp is None:
         checkpoint_exp = experiment_name
@@ -59,9 +59,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     data_path = os.path.join(project_path, 'data')
     processed_path = os.path.join(data_path, 'processed')
 
-    dataset_names = {'train': train_ds_name, 'dev': dev_ds_name}
+    partition_names = {'train': train_ds_name, 'dev': dev_ds_name}
+    dataset_names = {partition: f"{name}_dataset.pkl" for partition, name in partition_names.items()}
     dataset_paths = {partition: os.path.join(data_path, dataset_names[partition]) for partition in dataset_names}
-    raw_paths = {partition: os.path.join(processed_path, partition) for partition in dataset_paths}
+    raw_paths = {partition: os.path.join(processed_path, partition_names[partition]) for partition in dataset_paths}
 
     relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
     datasets = {partition: KinshipDataset.get_dataset(dataset_paths[partition], raw_paths[partition],
@@ -293,10 +294,9 @@ if __name__ == "__main__":
                           n_epochs=10, weight_decay=3e-4, simple_fc_layers=[512],
                           custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=True,
-                          train_ds_name='train_dataset.pkl', dev_ds_name='mini_dataset.pkl',
-                          pin_memory=True, non_blocking=True, logging_rate=10, loss_func=None,
-                          saving_rate=500, experiment_name='big_cont', hof_size=6,
-                          checkpoint_name='training_checkpoint_26500.pth', checkpoint_exp='big_train')
+                          train_ds_name='dev', dev_ds_name='mini',
+                          pin_memory=True, non_blocking=True, logging_rate=4, loss_func=None,
+                          saving_rate=-1, experiment_name='check_ds_change')
     # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
     #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
     #                       combination_module=combination_module, combination_size=combination_module.output_size(),

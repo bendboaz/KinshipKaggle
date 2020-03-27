@@ -32,7 +32,7 @@ def read_train_dataset(path):
             person_name = f"{family}/{person}"
             person_path = os.path.join(family_path, person)
             for img in os.listdir(person_path):
-                dataset[family][person_name].append(os.path.join(family, person, img))
+                dataset[family][person_name].append([family, person, img])
 
     return dataset
 
@@ -44,10 +44,8 @@ def read_test_dataset(path):
 class KinshipDataset(Dataset):
     @staticmethod
     def get_pair_label(pair, connections):
-        person1, _ = os.path.split(pair[0])
-        family1, person1 = os.path.split(person1)
-        person2, _ = os.path.split(pair[1])
-        family2, person2 = os.path.split(person2)
+        family1, person1, _ = pair[0]
+        family2, person2, _ = pair[1]
         if person1 == person2:
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
@@ -84,32 +82,46 @@ class KinshipDataset(Dataset):
         else:
             face_transforms = transforms.ToTensor()
 
-        img1 = face_transforms(Image.open(os.path.join(self.path, path1)))
-        img2 = face_transforms(Image.open(os.path.join(self.path, path2)))
+        img1 = face_transforms(Image.open(os.path.join(self.path, *path1)))
+        img2 = face_transforms(Image.open(os.path.join(self.path, *path2)))
 
         return torch.stack([img1, img2]), label
 
     def __len__(self):
         return len(self.allpairs)
 
-    def to_relative_paths(self):
-        if self.allpairs[0][0].find(self.path) != 0:
-            return
-        relative_start = len(self.path)
-        self.allpairs = list(map(lambda pair, label: ((pair[0][relative_start:], pair[1][relative_start:]), label),
+    def to_relative_paths(self, force_change=False):
+        sample_item = self.allpairs[0][0][0]
+        if (not isinstance(sample_item, str)) and not force_change:
+            assert isinstance(sample_item, list)
+            return False
+        if force_change or self.allpairs[0][0][0].find(self.path) == 0:
+            relative_start = len(self.path) + len(os.sep)
+            self.allpairs = map(lambda labeled_pair: ((labeled_pair[0][0][relative_start:],
+                                                       labeled_pair[0][1][relative_start:]),
+                                                      labeled_pair[1]),
+                                self.allpairs)
+
+        self.allpairs = list(map(lambda labeled_pair: ((labeled_pair[0][0].split(os.sep),
+                                                        labeled_pair[0][1].split(os.sep)),
+                                                       labeled_pair[1]),
                                  self.allpairs))
+        return True
 
     def change_dir(self, new_path):
         self.path = new_path
 
     @classmethod
-    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True):
+    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True, force_change=False):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
-            dataset.to_relative_paths()
+            dataset_changed = dataset.to_relative_paths(force_change)
             if raw_path != dataset.path:
-                dataset.change_dir(raw_path)
+                dataset_changed = dataset.change_dir(raw_path) or dataset_changed
+            if dataset_changed:
+                with open(pickled_path, 'wb+') as f:
+                    pickle.dump(dataset, f)
         else:
             dataset = cls(raw_path, labels_path)
             with open(pickled_path, 'wb+') as f:
