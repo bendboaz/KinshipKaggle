@@ -17,7 +17,7 @@ from implementation.DataHandling import KinshipDataset
 from implementation.Utils import *
 from ax import *
 
-PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # class opt_parameters:
 #     def __init__(self, ):
@@ -29,7 +29,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
-                   hof_size=1):
+                   hof_size=1, checkpoint_exp=None):
     if device is None:
         device = torch.device('cpu')
 
@@ -50,6 +50,9 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     if dev_ds_name is None:
         dev_ds_name = 'dev_dataset.pkl'
+
+    if checkpoint_exp is None:
+        checkpoint_exp = experiment_name
 
     model = model_class(combination_module, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers)
 
@@ -77,8 +80,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
 
-    if experiment_name is not None and checkpoint_name is not None:
-        experiment_dir = os.path.join(project_path, 'experiments', experiment_name)
+    if checkpoint_exp is not None and checkpoint_name is not None:
+        experiment_dir = os.path.join(project_path, 'experiments', checkpoint_exp)
         model, optimizer, loss_func, lr_scheduler, train_engine = load_checkpoint(model_class, experiment_dir,
                                                                                   checkpoint_name, device)
 
@@ -289,7 +292,8 @@ if __name__ == "__main__":
                           combination_size=combination_module.output_size(), data_augmentation=True,
                           train_ds_name='train_dataset.pkl', dev_ds_name='mini_dataset.pkl',
                           pin_memory=True, non_blocking=True, logging_rate=10, loss_func=None,
-                          saving_rate=500, experiment_name='big_train', hof_size=6)
+                          saving_rate=500, experiment_name='big_cont', hof_size=6,
+                          checkpoint_name='training_checkpoint_26500.pth', checkpoint_exp='big_train')
     # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
     #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
     #                       combination_module=combination_module, combination_size=combination_module.output_size(),
