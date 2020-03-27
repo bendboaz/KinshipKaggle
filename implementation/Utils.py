@@ -86,7 +86,7 @@ def plot_metric(values, title, y_label, index_scale=1, **kwargs):
     fig = plt.figure()
     plt.cla()
     # plt.scatter(range(len(values)), values, **kwargs)
-    plt.plot(range(len(values) * index_scale, step=index_scale), values, **kwargs)
+    plt.plot(range(0, len(values) * index_scale, index_scale), values, **kwargs)
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)

@@ -61,8 +61,8 @@ class KinshipClassifier(nn.Module):
         for param in self.facenet.parameters(recurse=True):
             param.requires_grad = False
 
-        for param in self.facenet.last_linear.parameters():
-            param.requires_grad = True
+        # for param in self.facenet.last_linear.parameters():
+        #     param.requires_grad = True
 
         self.simple_fc = get_dense_block(self.FACENET_OUT_SIZE * 2, simple_fc_sizes, nn.ReLU)
         self.custom_fc = get_dense_block(self.combination_size, custom_fc_sizes, nn.ReLU)
