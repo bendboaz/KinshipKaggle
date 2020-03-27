@@ -99,12 +99,17 @@ class KinshipDataset(Dataset):
         self.allpairs = list(map(lambda pair, label: ((pair[0][relative_start:], pair[1][relative_start:]), label),
                                  self.allpairs))
 
+    def change_dir(self, new_path):
+        self.path = new_path
+
     @classmethod
     def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
             dataset.to_relative_paths()
+            if raw_path != dataset.path:
+                dataset.change_dir(raw_path)
         else:
             dataset = cls(raw_path, labels_path)
             with open(pickled_path, 'wb+') as f:
