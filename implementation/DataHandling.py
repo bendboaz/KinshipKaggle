@@ -11,7 +11,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
-
+from implementation.Training import PROJECT_ROOT
 from implementation.Utils import train_dev_split
 
 # Implement datasets (train, test, add validation split)
@@ -135,11 +135,13 @@ if __name__ == "__main__":
     seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
 
-    raw_train_dataset = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle\\data\\raw\\train\\"
-    processed_directory = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle\\data\\processed\\"
+    data_directory = os.path.join(PROJECT_ROOT, "data")
+    raw_train_dataset = os.path.join(PROJECT_ROOT, "data", "raw", "train")
+    processed_directory = os.path.join(PROJECT_ROOT, "data", "processed")
+    csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships.csv")
 
-    my_dataset = KinshipDataset.get_dataset("..\\data\\train_dataset.pkl",
-                                            "..\\data\\processed\\train", "..\\data\\raw\\train_relationships.csv")
+    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory,"train_dataset.pkl"),
+                                            os.path.join(processed_directory,"train"), csv_file)
     print("Dataset length:", len(my_dataset))
     for idx in range(len(my_dataset))[:10]:
         pair, label = my_dataset[idx]
