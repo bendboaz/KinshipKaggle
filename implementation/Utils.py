@@ -91,8 +91,10 @@ def plot_metric(values, title, y_label, index_scale=1, **kwargs):
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)
-    plt.savefig(os.path.join(PROJECT_ROOT, "figs", "{}_plot.png".format(title.replace(" ", "_"))))
+    if not os.path.isdir(os.path.join(PROJECT_ROOT, 'figs')):
+        os.mkdir(os.path.join(PROJECT_ROOT, 'figs'))
 
+    plt.savefig(os.path.join(PROJECT_ROOT, "figs", "{}_plot.png".format(title.replace(" ", "_"))))
     plt.close(fig)
 
 
