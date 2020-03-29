@@ -11,8 +11,8 @@ import pandas as pd
 from torch.utils.data import Dataset
 from torchvision import transforms
 from tqdm import tqdm
-from implementation.Training import PROJECT_ROOT
-from implementation.Utils import train_dev_split
+
+from implementation.Utils import train_dev_split, PROJECT_ROOT
 
 # Implement datasets (train, test, add validation split)
 # Later: augmentations (horizontal flips, color tweaks etc.)

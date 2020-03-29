@@ -7,8 +7,8 @@ from torch import nn
 import torch
 from matplotlib import pyplot as plt
 from ignite.engine import Engine, create_supervised_trainer
-from implementation.Training import PROJECT_ROOT
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
     hiddens = []
