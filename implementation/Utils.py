@@ -8,6 +8,7 @@ import torch
 from matplotlib import pyplot as plt
 from ignite.engine import Engine, create_supervised_trainer
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
     hiddens = []
@@ -90,7 +91,7 @@ def plot_metric(values, title, y_label, index_scale=1, **kwargs):
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)
-    plt.show()
+    plt.savefig(PROJECT_ROOT,"figs","{}_plot".format(title.replace(" ", "_")))
 
     plt.close(fig)
 
