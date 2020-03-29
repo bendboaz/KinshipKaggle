@@ -26,7 +26,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
-                   hof_size=1, checkpoint_exp=None):
+                   hof_size=1, checkpoint_exp=None, data_path=None):
     if device is None:
         device = torch.device('cpu')
 
@@ -53,7 +53,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     model = model_class(combination_module, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers)
 
-    data_path = os.path.join(project_path, 'data')
+    if data_path is None:
+        data_path = os.path.join(project_path, 'data')
     processed_path = os.path.join(data_path, 'processed')
 
     partition_names = {'train': train_ds_name, 'dev': dev_ds_name}

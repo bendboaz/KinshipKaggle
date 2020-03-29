@@ -67,4 +67,5 @@ if __name__ == "__main__":
                           train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
                           pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
                           saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
-                          checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name)
+                          checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
+                          data_path=args.data_path)
