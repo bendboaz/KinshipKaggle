@@ -44,7 +44,8 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
         lr_gamma = parameters['lr_gamma']
 
         combinator = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-
+        print("Training parameters: ")
+        print(parameters)
         model, metrics = finetune_model(KinshipClassifier, project_path, batch_size,
                                         num_workers=num_workers, device=device, base_lr=base_lr, max_lr=max_lr,
                                         lr_gamma=lr_gamma, lr_decay_iters=lr_decay_iters, n_epochs=n_epochs,
