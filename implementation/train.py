@@ -11,6 +11,9 @@ from implementation.DataHandling import KinshipDataset
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="A script to train your neural network, new one or from checkpoint.")
+    parser.add_argument('data_dir', type=str,
+                        help='Path to the data directory (needs to contain \'processed\' and \'raw\' directories, as'
+                             'well as \'{train/dev/mini}_dataset.pkl\'')
     parser.add_argument('--simple_fc', type=list, default=None,
                         help='Layer sizes for the simple branch of the network.')
     parser.add_argument('--custom_fc', type=list, default=None,
