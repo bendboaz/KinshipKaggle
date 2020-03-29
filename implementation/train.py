@@ -6,6 +6,7 @@ import torch
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.Utils import PROJECT_ROOT, feature_combination_list
 from implementation.Training import finetune_model
+from implementation.DataHandling import KinshipDataset
 
 
 if __name__ == "__main__":
