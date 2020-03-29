@@ -1,35 +1,32 @@
 import os
 import pickle
+from typing import Optional, Union
 
 import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
 from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
-from ignite.metrics import Accuracy, Loss, RunningAverage
+from ignite.metrics import Accuracy, Loss
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
-from ignite.handlers.checkpoint import ModelCheckpoint
-from ignite.handlers import EarlyStopping, TerminateOnNan
 from ignite.contrib.engines import common
 
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.DataHandling import KinshipDataset
 from implementation.Utils import *
-from ax import *
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # class opt_parameters:
 #     def __init__(self, ):
 
 
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                   device=None, base_lr=1e-4, max_lr=1e-3, lr_gamma=0.9, lr_decay_iters=None, weight_decay=0.0,
+                   device=None, base_lr=1e-4, max_lr=1e-3, lr_gamma=0.9,
+                   lr_decay_iters: Optional[Union[int, float]] = None, weight_decay=0.0,
                    loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
-                   hof_size=1, checkpoint_exp=None):
+                   hof_size=1, checkpoint_exp=None, data_path=None):
     if device is None:
         device = torch.device('cpu')
 
@@ -46,22 +43,24 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         final_fc_layers = []
 
     if train_ds_name is None:
-        train_ds_name = 'train_dataset.pkl'
+        train_ds_name = 'train'
 
     if dev_ds_name is None:
-        dev_ds_name = 'dev_dataset.pkl'
+        dev_ds_name = 'dev'
 
     if checkpoint_exp is None:
         checkpoint_exp = experiment_name
 
     model = model_class(combination_module, combination_size, simple_fc_layers, custom_fc_layers, final_fc_layers)
 
-    data_path = os.path.join(project_path, 'data')
+    if data_path is None:
+        data_path = os.path.join(project_path, 'data')
     processed_path = os.path.join(data_path, 'processed')
 
-    dataset_names = {'train': train_ds_name, 'dev': dev_ds_name}
+    partition_names = {'train': train_ds_name, 'dev': dev_ds_name}
+    dataset_names = {partition: f"{name}_dataset.pkl" for partition, name in partition_names.items()}
     dataset_paths = {partition: os.path.join(data_path, dataset_names[partition]) for partition in dataset_names}
-    raw_paths = {partition: os.path.join(processed_path, partition) for partition in dataset_paths}
+    raw_paths = {partition: os.path.join(processed_path, partition_names[partition]) for partition in dataset_paths}
 
     relationships_path = os.path.join(data_path, 'raw', 'train_relationships.csv')
     datasets = {partition: KinshipDataset.get_dataset(dataset_paths[partition], raw_paths[partition],
@@ -73,9 +72,19 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     params_to_train = list(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer = optim.AdamW(params_to_train, lr=base_lr, weight_decay=weight_decay)
-    lr_decay_iters = len(dataloaders['train']) if lr_decay_iters is None else lr_decay_iters
-    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, step_size_up=lr_decay_iters // 2,
-                                               mode='exp_range', gamma=lr_gamma, cycle_momentum=False)
+    if lr_decay_iters is None:
+        lr_decay_iters = len(dataloaders['train'])
+    elif lr_decay_iters <= 1.0:
+        lr_decay_iters = int(len(dataloaders['train']) * lr_decay_iters)
+    else:
+        lr_decay_iters = int(lr_decay_iters)
+    stepsize_up = lr_decay_iters // 2
+    stepsize_down = lr_decay_iters - stepsize_up
+    assert lr_decay_iters > 0
+    assert stepsize_up + stepsize_down == lr_decay_iters
+    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, step_size_up=stepsize_up,
+                                               step_size_down=stepsize_down, mode='exp_range', gamma=lr_gamma,
+                                               cycle_momentum=False)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
@@ -289,14 +298,13 @@ if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, 128, num_workers=8, device=device,
-                          base_lr=3e-4, max_lr=9e-3, lr_gamma=0.9, lr_decay_iters=95,
-                          n_epochs=10, weight_decay=3e-4, simple_fc_layers=[512],
-                          custom_fc_layers=[2048, 512], final_fc_layers=[512], combination_module=combination_module,
+                          base_lr=3e-4, max_lr=9e-3, lr_gamma=0.8, lr_decay_iters=0.7,
+                          n_epochs=10, weight_decay=3e-4, simple_fc_layers=[256],
+                          custom_fc_layers=[2048, 256], final_fc_layers=[512], combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=True,
-                          train_ds_name='train_dataset.pkl', dev_ds_name='mini_dataset.pkl',
+                          train_ds_name='train', dev_ds_name='mini',
                           pin_memory=True, non_blocking=True, logging_rate=10, loss_func=None,
-                          saving_rate=500, experiment_name='big_cont', hof_size=6,
-                          checkpoint_name='training_checkpoint_26500.pth', checkpoint_exp='big_train')
+                          saving_rate=500, experiment_name='smaller_model')
     # lrs, losses = find_lr(KinshipClassifier, PROJECT_ROOT, 64, num_workers=8, device=device, lr_increase=1.01,
     #                       min_lr=4e-7, max_lr=1e+1, simple_fc_layers=[512], custom_fc_layers=[2048, 512], final_fc_layers=[512],
     #                       combination_module=combination_module, combination_size=combination_module.output_size(),

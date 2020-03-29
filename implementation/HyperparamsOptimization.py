@@ -1,5 +1,6 @@
 import os
 import pickle
+from implementation.Training import PROJECT_ROOT
 
 from ax import *
 import torch
@@ -54,7 +55,7 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
 
 
 if __name__ == "__main__":
-    PROJECT_ROOT = "C:\\Users\\bendb\\PycharmProjects\\KinshipKaggle"
+
     batch_size = 128
     num_workers = 8
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
