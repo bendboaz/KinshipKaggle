@@ -18,34 +18,48 @@ from implementation.Utils import *
 #     weight_decay
 
 
-def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
-                     device=None, loss_func=None, n_epochs=1, simple_fc_layers=None, custom_fc_layers=None,
-                     final_fc_layers=None, train_ds_name=None, dev_ds_name=None, logging_rate=-1, n_trials=10):
-    comb_dropout = dict(name='dropout_prob', bounds=[0.5, 0.95], type='range')
-    initial_lr = dict(name='initial_lr', bounds=[1e-9, 1e-3], type='range', log_scale=True)
-    lr_decay_mult = dict(name='lr_decay', bounds=[0.1, 0.3], type='range')
-    weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range')
+def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True, augment=True,
+                     device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
+                     n_trials=10, patience=-1):
+    base_lr = dict(name='base_lr', bounds=[1e-6, 1e-3], type='range', log_scale=True)
+    max_lr = dict(name='max_lr', bounds=[1e-5, 1e-2], type='range', log_scale=True)
+    lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.3, 1.0], type='range')
+    weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range', log_scale=True)
+    lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range', log_scale=True)
+    simple_1 = dict(name='simple_1', bounds=[256, 2560], type='range', log_scale=True)
+    simple_2 = dict(name='simple_2', bounds=[256, 2560], type='range', log_scale=True)
+    custom_1 = dict(name='custom_1', bounds=[1024, 4096], type='range', log_scale=True)
+    custom_2 = dict(name='custom_2', bounds=[512, 2560], type='range', log_scale=True)
+    final_1 = dict(name='final_1', bounds=[256, 1024], type='range', log_scale=True)
+    final_2 = dict(name='final_2', bounds=[256, 1024], type='range', log_scale=True)
 
     def _objective(parameters):
-        dropout_prob = parameters['dropout_prob']
-        initial_lr = parameters['initial_lr']
+        simple_fc_layers = [parameters['simple_1'], parameters['simple_2']]
+        custom_fc_layers = [parameters['custom_1'], parameters['custom_2']]
+        final_fc_layers = [parameters['final_1'], parameters['final_2']]
+        base_lr = parameters['base_lr']
+        max_lr = parameters['max_lr']
+        lr_decay_iters = parameters['lr_decay_iters']
         weight_decay = parameters['weight_decay']
-        lr_decay = parameters['lr_decay']
+        lr_gamma = parameters['lr_gamma']
 
-        combinator = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, dropout_prob)
+        combinator = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
 
         model, metrics = finetune_model(KinshipClassifier, project_path, batch_size,
-                                        num_workers=num_workers, device=device, base_lr=initial_lr, lr_decay=lr_decay,
-                                        n_epochs=n_epochs, weight_decay=weight_decay, simple_fc_layers=simple_fc_layers,
+                                        num_workers=num_workers, device=device, base_lr=base_lr, max_lr=max_lr,
+                                        lr_gamma=lr_gamma, lr_decay_iters=lr_decay_iters, n_epochs=n_epochs,
+                                        weight_decay=weight_decay, simple_fc_layers=simple_fc_layers,
                                         custom_fc_layers=custom_fc_layers, final_fc_layers=final_fc_layers,
                                         combination_module=combinator, combination_size=combinator.output_size(),
                                         train_ds_name=train_ds_name, dev_ds_name=dev_ds_name,
-                                        pin_memory=pin_memory, non_blocking=non_blocking,
-                                        logging_rate=logging_rate, loss_func=loss_func)
+                                        pin_memory=pin_memory, non_blocking=non_blocking, data_augmentation=augment,
+                                        logging_rate=logging_rate, loss_func=loss_func, patience=patience,
+                                        verbose=False)
 
-        return metrics['final_dev_loss']
+        return metrics['final_dev_score']
 
-    optimization_results = optimize(parameters=[comb_dropout, initial_lr, lr_decay_mult, weight_decay],
+    optimization_results = optimize(parameters=[simple_1, simple_2, custom_1, custom_2, final_1, final_2, base_lr,
+                                                max_lr, lr_decay_iters, lr_gamma, weight_decay],
                                     evaluation_function=_objective,
                                     experiment_name='optimizing',
                                     minimize=True,
@@ -56,16 +70,14 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
 
 if __name__ == "__main__":
 
-    batch_size = 128
-    num_workers = 8
+    batch_size = 256
+    num_workers = 10
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
-    train_ds = 'dev_dataset.pkl'
-    dev_ds = 'dev_dataset.pkl'
+    train_ds = 'dev'
+    dev_ds = 'mini'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, batch_size, num_workers, device=device,
-                                                              n_epochs=4, simple_fc_layers=[512],
-                                                              custom_fc_layers=[2048, 512], final_fc_layers=[],
-                                                              train_ds_name=train_ds, dev_ds_name=dev_ds,
+                                                              n_epochs=4, train_ds_name=train_ds, dev_ds_name=dev_ds,
                                                               logging_rate=30)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
     with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.pkl'), 'wb+') as f:

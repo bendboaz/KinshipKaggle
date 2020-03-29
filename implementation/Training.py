@@ -26,7 +26,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
-                   hof_size=1, checkpoint_exp=None, data_path=None):
+                   hof_size=1, checkpoint_exp=None, data_path=None, verbose=True):
     if device is None:
         device = torch.device('cpu')
 
@@ -89,7 +89,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
 
-    if checkpoint_exp is not None and checkpoint_name is not None:
+    if checkpoint_exp is not None and checkpoint_name is not None and verbose:
         experiment_dir = os.path.join(project_path, 'experiments', checkpoint_exp)
         model, optimizer, loss_func, lr_scheduler, train_engine = load_checkpoint(model_class, experiment_dir,
                                                                                   checkpoint_name, device)
@@ -99,7 +99,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
 
     metrics = {}
 
-    if logging_rate > 0:
+    if logging_rate > 0 and verbose:
         metrics['ce_history'] = []
         metrics['smoothed_loss_history'] = []
         beta = 0.98
@@ -129,17 +129,18 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     # nan_terminate = TerminateOnNan()
     # train_engine.add_event_handler(Events.ITERATION_COMPLETED, nan_terminate)
 
-    @train_engine.on(Events.EPOCH_COMPLETED)
-    def print_training_metrics(engine):
-        print(f"Finished epoch {engine.state.epoch}")
-        if train_ds_name == dev_ds_name:
-            print(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
-            metrics['final_dev_loss'] = engine.state.output
-            return
-        eval_engine.run(dataloaders['dev'])
-        metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
-        print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
-              f"Acc = {eval_engine.state.metrics['accuracy']}")
+    if verbose:
+        @train_engine.on(Events.EPOCH_COMPLETED)
+        def print_training_metrics(engine):
+            print(f"Finished epoch {engine.state.epoch}")
+            if train_ds_name == dev_ds_name:
+                print(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
+                metrics['final_dev_loss'] = engine.state.output
+                return
+            eval_engine.run(dataloaders['dev'])
+            metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
+            print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
+                  f"Acc = {eval_engine.state.metrics['accuracy']}")
 
     # Replaced by setup_common_training_handlers
     # @train_engine.on(Events.ITERATION_COMPLETED)
@@ -149,7 +150,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     to_save = None
     output_path = None
 
-    if saving_rate > 0:
+    if saving_rate > 0 and verbose:
         if experiment_name is None:
             print("Warning: saving rate specified but experiment name is None")
             exit()
@@ -194,7 +195,9 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     print(model)
     print("Running on:", device)
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
-
+    if not verbose:
+        eval_engine.run(dataloaders['dev'])
+        metrics['final_dev_score'] = eval_engine.state.metrics['accuracy']
     return model, metrics
 
 
