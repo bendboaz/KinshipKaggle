@@ -70,15 +70,15 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
 
 if __name__ == "__main__":
 
-    batch_size = 256
-    num_workers = 10
+    batch_size = 82
+    num_workers = 8
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     train_ds = 'dev'
     dev_ds = 'mini'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, batch_size, num_workers, device=device,
                                                               n_epochs=4, train_ds_name=train_ds, dev_ds_name=dev_ds,
-                                                              logging_rate=30)
+                                                              augment=True)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
     with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.pkl'), 'wb+') as f:
         pickle.dump(results, f)

@@ -192,7 +192,8 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     eval_pbar = ProgressBar(persist=False, desc="Evaluation")
     eval_pbar.attach(eval_engine)
 
-    print(model)
+    if verbose:
+        print(model)
     print("Running on:", device)
     train_engine.run(dataloaders['train'], max_epochs=n_epochs)
     if not verbose:
