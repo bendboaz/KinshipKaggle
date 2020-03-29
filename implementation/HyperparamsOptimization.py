@@ -56,7 +56,7 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
                                         pin_memory=pin_memory, non_blocking=non_blocking, data_augmentation=augment,
                                         logging_rate=logging_rate, loss_func=loss_func, patience=patience,
                                         verbose=False)
-
+        print("Validation score: ", metrics['final_dev_score'])
         return metrics['final_dev_score']
 
     optimization_results = optimize(parameters=[simple_1, simple_2, custom_1, custom_2, final_1, final_2, base_lr,
