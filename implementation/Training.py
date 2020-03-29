@@ -77,8 +77,13 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         lr_decay_iters = int(len(dataloaders['train']) * lr_decay_iters)
     else:
         lr_decay_iters = int(lr_decay_iters)
-    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, step_size_up=lr_decay_iters // 2,
-                                               mode='exp_range', gamma=lr_gamma, cycle_momentum=False)
+    stepsize_up = lr_decay_iters // 2
+    stepsize_down = lr_decay_iters - stepsize_up
+    assert lr_decay_iters > 0
+    assert stepsize_up + stepsize_down == lr_decay_iters
+    lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=max_lr, step_size_up=stepsize_up,
+                                               step_size_down=stepsize_down, mode='exp_range', gamma=lr_gamma,
+                                               cycle_momentum=False)
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
                                              non_blocking=non_blocking)
