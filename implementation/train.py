@@ -14,11 +14,11 @@ if __name__ == "__main__":
     parser.add_argument('data_dir', type=str,
                         help='Path to the data directory (needs to contain \'processed\' and \'raw\' directories, as'
                              'well as \'{train/dev/mini}_dataset.pkl\'')
-    parser.add_argument('--simple_fc', type=list, default=None,
+    parser.add_argument('--simple_fc', nargs='+', default=None, type=int,
                         help='Layer sizes for the simple branch of the network.')
-    parser.add_argument('--custom_fc', type=list, default=None,
+    parser.add_argument('--custom_fc', nargs='+', default=None, type=int,
                         help='Layer sizes for the custom (combinations) branch of the network.')
-    parser.add_argument('--final_fc', type=list, default=None,
+    parser.add_argument('--final_fc', nargs='*', default=None, type=int,
                         help='Layer sizes for the final classification.')
     parser.add_argument('--use_cpu', action='store_true',
                         help='Use only CPU in training. Otherwise use GPU is available.')
@@ -28,7 +28,7 @@ if __name__ == "__main__":
                         help='Top lr for the cyclic scheduling.')
     parser.add_argument('--lr_gamma', type=float, default=1.0,
                         help='Parameter by which to decay max_lr each cycle.')
-    parser.add_argument('--lr_cycle', type=Union[int, float], default=1.0,
+    parser.add_argument('--lr_cycle', type=float, default=1.0,
                         help='Length of each up-down cycle.')
     parser.add_argument('--weight_decay', type=float, default=0.0,
                         help='Weight decay coefficient for AdamW optimizer.')
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
                           base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
-                          lr_decay_iters=args.lr_cycle, n_epochs=args.n_epoch, weight_decay=args.weight_decay,
+                          lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
                           simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
                           final_fc_layers=args.final_fc, combination_module=combination_module,
                           combination_size=combination_module.output_size(), data_augmentation=args.no_augmentation,
@@ -68,4 +68,4 @@ if __name__ == "__main__":
                           pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
                           saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
                           checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
-                          data_path=args.data_path)
+                          data_path=args.data_dir)
