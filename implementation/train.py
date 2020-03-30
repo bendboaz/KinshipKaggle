@@ -70,7 +70,7 @@ if __name__ == "__main__":
         combination_list = [combination_list[i] for i in sorted(args.comb_filter)]
 
     combination_module = PairCombinationModule(combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
+    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=args.workers, device=device,
                           base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
                           lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
                           simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
