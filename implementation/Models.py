@@ -63,11 +63,15 @@ class KinshipClassifier(nn.Module):
 
         # for param in self.facenet.last_linear.parameters():
         #     param.requires_grad = True
-
         self.simple_fc = get_dense_block(self.FACENET_OUT_SIZE * 2, simple_fc_sizes, nn.ReLU)
+
+        self.pre_combinations = nn.Linear(self.FACENET_OUT_SIZE, self.FACENET_OUT_SIZE)
+        self.precomb_relu = nn.ReLU()
         self.custom_fc = get_dense_block(self.combination_size, custom_fc_sizes, nn.ReLU)
 
+        self.before_classification_activation = nn.ReLU()
         self.final_bn = nn.BatchNorm1d(simple_fc_sizes[-1] + custom_fc_sizes[-1])
+
         self.classification_fc = get_dense_block(simple_fc_sizes[-1] + custom_fc_sizes[-1], final_fc_sizes + [2],
                                                  nn.ReLU)
 
@@ -79,11 +83,13 @@ class KinshipClassifier(nn.Module):
         img2_features = F.relu(self.facenet(img2_batch))
 
         simple_branch = torch.cat([img1_features, img2_features], 1)
-        simple_branch = F.relu(self.simple_fc(simple_branch))
+        simple_branch = self.before_classification_activation(self.simple_fc(simple_branch))
 
-        custom_branch = self.combination_module(img1_features, img2_features)
+        custom_1 = self.precomb_relu(self.pre_combinations(img1_features))
+        custom_2 = self.precomb_relu(self.pre_combinations(img2_features))
+        custom_branch = self.combination_module(custom_1, custom_2)
         custom_branch = self.custom_fc(custom_branch)
-        custom_branch = F.relu(custom_branch)
+        custom_branch = self.before_classification_activation(custom_branch)
 
         concat_vector = torch.cat([simple_branch, custom_branch], dim=1)
         concat_vector = self.final_bn(concat_vector)

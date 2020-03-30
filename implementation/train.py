@@ -60,7 +60,8 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint_exp', type=str, default=None,
                         help='Name of experiment from which to load the checkpoint.')
     args = parser.parse_args()
-
+    print("Arguments:")
+    print(args)
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() and not args.use_cpu \
         else torch.device('cpu')
     combination_list = feature_combination_list
