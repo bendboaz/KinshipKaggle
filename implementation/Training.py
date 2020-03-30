@@ -87,7 +87,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                                cycle_momentum=False)
 
     regularized_loss = lambda y, y_pred: loss_func(y, y_pred) + \
-                                         weight_reg_coef * sum(torch.abs(model.combination_module.weights))
+                                         weight_reg_coef * sum(map(torch.abs, model.combination_module.weights))
 
     train_engine = create_supervised_trainer(model, optimizer, loss_fn=regularized_loss, device=device,
                                              non_blocking=non_blocking)
