@@ -22,7 +22,7 @@ from implementation.Utils import *
 def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True,
                    device=None, base_lr=1e-4, max_lr=1e-3, lr_gamma=0.9,
                    lr_decay_iters: Optional[Union[int, float]] = None, weight_decay=0.0,
-                   loss_func=None, n_epochs=1, patience=-1, data_augmentation=True,
+                   loss_func=None, n_epochs=1, patience=-1, data_augmentation=True, weight_reg_coef=0.0,
                    combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
                    simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
@@ -86,7 +86,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                                step_size_down=stepsize_down, mode='exp_range', gamma=lr_gamma,
                                                cycle_momentum=False)
 
-    train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
+    regularized_loss = lambda y, y_pred: loss_func(y, y_pred) + \
+                                         weight_reg_coef * sum(torch.abs(model.combination_module.weights))
+
+    train_engine = create_supervised_trainer(model, optimizer, loss_fn=regularized_loss, device=device,
                                              non_blocking=non_blocking)
 
     if checkpoint_exp is not None and checkpoint_name is not None and verbose:
