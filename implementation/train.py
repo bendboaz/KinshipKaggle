@@ -36,6 +36,8 @@ if __name__ == "__main__":
                         help='Length of each up-down cycle.')
     parser.add_argument('--weight_decay', type=float, default=0.0,
                         help='Weight decay coefficient for AdamW optimizer.')
+    parser.add_argument('--grad_clip', type=float, default=None,
+                        help='Maximum norm for gradients. Defaults to no clipping.')
     parser.add_argument('--comb_reg', type=float, default=0.0,
                         help='coefficient for L1 regularization on the weights for different feature combinations.')
     parser.add_argument('--n_epochs', type=int, default=10,
@@ -76,11 +78,11 @@ if __name__ == "__main__":
     _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=args.workers, device=device,
                           base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
                           lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
-                          simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
-                          final_fc_layers=args.final_fc, combination_module=combination_module,
-                          combination_size=combination_module.output_size(), weight_reg_coef=args.comb_reg,
-                          data_augmentation=args.no_augmentation, train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
-                          pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
-                          saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
-                          checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
-                          data_path=args.data_dir)
+                          grad_clip_val=args.grad_clip, simple_fc_layers=args.simple_fc,
+                          custom_fc_layers=args.custom_fc, final_fc_layers=args.final_fc,
+                          combination_module=combination_module, combination_size=combination_module.output_size(),
+                          weight_reg_coef=args.comb_reg, data_augmentation=args.no_augmentation,
+                          train_ds_name=args.train_ds, dev_ds_name=args.val_ds, pin_memory=True, non_blocking=True,
+                          logging_rate=args.log_every_iters, loss_func=None, saving_rate=args.save_every_iters,
+                          experiment_name=args.experiment_name, checkpoint_exp=args.checkpoint_exp,
+                          checkpoint_name=args.checkpoint_name, data_path=args.data_dir)
