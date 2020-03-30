@@ -117,10 +117,18 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
             metrics['smoothed_loss_history'].append(
                 avg_loss / (1 - (beta ** (len(metrics['smoothed_loss_history']) + 1))))
 
+        figs_path = os.path.join(PROJECT_ROOT, 'figs')
+        if not os.path.isdir(figs_path):
+            os.mkdir(figs_path)
+
+        figs_path = os.path.join(figs_path, experiment_name)
+        if not os.path.isdir(figs_path):
+            os.mkdir(figs_path)
+
         @train_engine.on(Events.EPOCH_COMPLETED)
         def plot_metrics(engine):
             plot_metric(metrics['smoothed_loss_history'], f"Smoothed loss epoch #{engine.state.epoch}",
-                        "Cross Entropy", index_scale=logging_rate)
+                        "Cross Entropy", index_scale=logging_rate, figs_path=figs_path)
 
     if patience >= 0:
         common.add_early_stopping_by_val_score(patience, eval_engine, train_engine, 'accuracy')

@@ -10,6 +10,7 @@ from ignite.engine import Engine, create_supervised_trainer
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
 def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
     hiddens = []
     simple_past_layer = input_size
@@ -83,7 +84,7 @@ feature_combination_list = [difference_squared, squared_difference, multificatio
                             difference_sqrt, sum_sqrt, difference]
 
 
-def plot_metric(values, title, y_label, index_scale=1, **kwargs):
+def plot_metric(values, title, y_label, index_scale=1, figs_path=None, **kwargs):
     fig = plt.figure()
     plt.cla()
     # plt.scatter(range(len(values)), values, **kwargs)
@@ -91,10 +92,9 @@ def plot_metric(values, title, y_label, index_scale=1, **kwargs):
     plt.xlabel('Iteration')
     plt.ylabel(y_label)
     plt.title(title)
-    if not os.path.isdir(os.path.join(PROJECT_ROOT, 'figs')):
-        os.mkdir(os.path.join(PROJECT_ROOT, 'figs'))
+    if figs_path is not None:
+        plt.savefig(os.path.join(figs_path, "{}_plot.png".format(title.replace(" ", "_"))))
 
-    plt.savefig(os.path.join(PROJECT_ROOT, "figs", "{}_plot.png".format(title.replace(" ", "_"))))
     plt.close(fig)
 
 
