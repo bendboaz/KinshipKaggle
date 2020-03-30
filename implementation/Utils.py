@@ -158,7 +158,7 @@ def create_custom_trainer(model, optimizer, loss_fn, clip_val=None,
         loss = loss_fn(y_pred, y)
         loss.backward()
         if clip_val is not None:
-            clip_grad_norm_(filter(lambda x: x.requires_grad, model.parameters()), clip_val, -clip_val)
+            clip_grad_norm_(filter(lambda x: x.requires_grad, model.parameters()), clip_val)
         optimizer.step()
         return output_transform(x, y, y_pred, loss)
 
