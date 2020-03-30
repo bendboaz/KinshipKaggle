@@ -65,6 +65,8 @@ if __name__ == "__main__":
         else torch.device('cpu')
     combination_list = feature_combination_list
     if not args.all_combs:
+        if len(args.comb_filter) == 0:
+            Warning("An empty combination module might cause the program to crash.")
         combination_list = [combination_list[i] for i in sorted(args.comb_filter)]
 
     combination_module = PairCombinationModule(combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
