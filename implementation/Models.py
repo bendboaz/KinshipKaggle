@@ -18,7 +18,8 @@ class PairCombinationModule(nn.Module):
     def __init__(self, combination_list, input_size, dropout_prob=0.5) -> None:
         super().__init__()
         self.combinations = combination_list
-        self.weights = [nn.Parameter(torch.ones(1), requires_grad=True) for _ in self.combinations]
+        self.weights = [nn.Parameter(torch.ones(1)/combination(torch.ones(1), torch.ones(1)), requires_grad=True)
+                        for combination in self.combinations]
         for ind, weight in enumerate(self.weights):
             self.register_parameter(f"combination{ind}_weight", weight)
 
