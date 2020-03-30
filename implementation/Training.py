@@ -6,7 +6,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from ignite.engine import create_supervised_evaluator, create_supervised_trainer, Events
+from ignite.engine import create_supervised_evaluator, Events
 from ignite.metrics import Accuracy, Loss
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 from ignite.contrib.engines import common
@@ -262,8 +262,8 @@ def find_lr(model_class, project_path, batch_size, num_workers=0, pin_memory=Tru
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=lr_increase)
     assert isinstance(lr_scheduler, torch.optim.lr_scheduler._LRScheduler)
 
-    train_engine = create_supervised_trainer(model, optimizer, loss_fn=loss_func, device=device,
-                                             non_blocking=non_blocking)
+    train_engine = create_custom_trainer(model, optimizer, loss_fn=loss_func, device=device,
+                                         non_blocking=non_blocking)
 
     lr_list = []
     loss_list = []

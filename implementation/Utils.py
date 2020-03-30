@@ -7,7 +7,7 @@ from torch import nn
 import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from matplotlib import pyplot as plt
-from ignite.engine import Engine, create_supervised_trainer, _prepare_batch
+from ignite.engine import Engine, _prepare_batch
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
