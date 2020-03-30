@@ -67,7 +67,7 @@ class KinshipClassifier(nn.Module):
         self.simple_fc = get_dense_block(self.FACENET_OUT_SIZE * 2, simple_fc_sizes, nn.ReLU)
 
         self.pre_combinations = nn.Linear(self.FACENET_OUT_SIZE, self.FACENET_OUT_SIZE)
-        self.precomb_relu = nn.ReLU()
+        self.precomb_activation = nn.Tanh()
         self.custom_fc = get_dense_block(self.combination_size, custom_fc_sizes, nn.ReLU)
 
         self.before_classification_activation = nn.ReLU()
@@ -86,8 +86,8 @@ class KinshipClassifier(nn.Module):
         simple_branch = torch.cat([img1_features, img2_features], 1)
         simple_branch = self.before_classification_activation(self.simple_fc(simple_branch))
 
-        custom_1 = self.precomb_relu(self.pre_combinations(img1_features))
-        custom_2 = self.precomb_relu(self.pre_combinations(img2_features))
+        custom_1 = self.precomb_activation(self.pre_combinations(img1_features))
+        custom_2 = self.precomb_activation(self.pre_combinations(img2_features))
         custom_branch = self.combination_module(custom_1, custom_2)
         custom_branch = self.custom_fc(custom_branch)
         custom_branch = self.before_classification_activation(custom_branch)
