@@ -58,14 +58,14 @@ if __name__ == "__main__":
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() and not args.use_cpu \
         else torch.device('cpu')
     combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
-                          base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
-                          lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
-                          simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
-                          final_fc_layers=args.final_fc, combination_module=combination_module,
-                          combination_size=combination_module.output_size(), data_augmentation=args.no_augmentation,
-                          train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
-                          pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
-                          saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
-                          checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
-                          data_path=args.data_dir)
+   _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
+                                base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
+                                lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
+                                simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
+                                final_fc_layers=args.final_fc, combination_module=combination_module,
+                                combination_size=combination_module.output_size(), data_augmentation=args.no_augmentation,
+                                train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
+                                pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
+                                saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
+                                checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
+                                data_path=args.data_dir)
