@@ -20,6 +20,10 @@ if __name__ == "__main__":
                         help='Layer sizes for the custom (combinations) branch of the network.')
     parser.add_argument('--final_fc', nargs='*', default=None, type=int,
                         help='Layer sizes for the final classification.')
+    combinations = parser.add_mutually_exclusive_group()
+    combinations.add_argument('--all_combs', action='store_true', help='Flag to use all pair combinations.')
+    combinations.add_argument('--comb_filter', nargs='*', default=None, type=int,
+                              help='List of combinations to use (if not using --all_combs).')
     parser.add_argument('--use_cpu', action='store_true',
                         help='Use only CPU in training. Otherwise use GPU is available.')
     parser.add_argument('--base_lr', type=float, default=1e-4,
@@ -36,6 +40,8 @@ if __name__ == "__main__":
                         help='Number of epochs to train.')
     parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size for training.')
+    parser.add_argument('--workers', type=int, default=8,
+                        help='Number of workers to load the batches.')
     parser.add_argument('--no_augmentation', action='store_false',
                         help='Specify this to not use data augmentations.')
     parser.add_argument('--train_ds', type=str, choices=['train', 'dev', 'mini'],
@@ -57,15 +63,19 @@ if __name__ == "__main__":
 
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() and not args.use_cpu \
         else torch.device('cpu')
-    combination_module = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
-   _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
-                                base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
-                                lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
-                                simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
-                                final_fc_layers=args.final_fc, combination_module=combination_module,
-                                combination_size=combination_module.output_size(), data_augmentation=args.no_augmentation,
-                                train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
-                                pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
-                                saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
-                                checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
-                                data_path=args.data_dir)
+    combination_list = feature_combination_list
+    if not args.all_combs:
+        combination_list = [combination_list[i] for i in sorted(args.comb_filter)]
+
+    combination_module = PairCombinationModule(combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
+    _, _ = finetune_model(KinshipClassifier, PROJECT_ROOT, args.batch_size, num_workers=8, device=device,
+                          base_lr=args.base_lr, max_lr=args.max_lr, lr_gamma=args.lr_gamma,
+                          lr_decay_iters=args.lr_cycle, n_epochs=args.n_epochs, weight_decay=args.weight_decay,
+                          simple_fc_layers=args.simple_fc, custom_fc_layers=args.custom_fc,
+                          final_fc_layers=args.final_fc, combination_module=combination_module,
+                          combination_size=combination_module.output_size(), data_augmentation=args.no_augmentation,
+                          train_ds_name=args.train_ds, dev_ds_name=args.val_ds,
+                          pin_memory=True, non_blocking=True, logging_rate=args.log_every_iters, loss_func=None,
+                          saving_rate=args.save_every_iters, experiment_name=args.experiment_name,
+                          checkpoint_exp=args.checkpoint_exp, checkpoint_name=args.checkpoint_name,
+                          data_path=args.data_dir)
