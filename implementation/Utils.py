@@ -5,8 +5,9 @@ import numpy as np
 from shutil import copytree
 from torch import nn
 import torch
+from torch.nn.utils.clip_grad import clip_grad_norm_
 from matplotlib import pyplot as plt
-from ignite.engine import Engine, create_supervised_trainer
+from ignite.engine import Engine, create_supervised_trainer, _prepare_batch
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -111,9 +112,54 @@ def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
     optimizer.load_state_dict(state_dicts['optimizer'])
     loss_func = nn.CrossEntropyLoss()
     loss_func.load_state_dict(state_dicts['loss_func'])
-    train_engine = create_supervised_trainer(model, optimizer, loss_func, device, non_blocking=True)
+    train_engine = create_custom_trainer(model, optimizer, loss_func, device, non_blocking=True)
     train_engine.load_state_dict(state_dicts['train_engine'])
     lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-4, max_lr=5e-3, gamma=0.9,
                                                      last_epoch=train_engine.state.epoch, cycle_momentum=False)
     lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
     return model, optimizer, loss_func, lr_scheduler, train_engine
+
+
+def create_custom_trainer(model, optimizer, loss_fn, clip_val=None,
+                          device=None, non_blocking=False,
+                          prepare_batch=_prepare_batch,
+                          output_transform=lambda x, y, y_pred, loss: loss.item()):
+    """
+    Factory function for creating a trainer for supervised models.
+
+    Args:
+        model (`torch.nn.Module`): the model to train.
+        optimizer (`torch.optim.Optimizer`): the optimizer to use.
+        loss_fn (torch.nn loss function): the loss function to use.
+        clip_val (Optional[float]): value for gradient norm clipping.
+        device (str, optional): device type specification (default: None).
+            Applies to both model and batches.
+        non_blocking (bool, optional): if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
+        prepare_batch (callable, optional): function that receives `batch`, `device`, `non_blocking` and outputs
+            tuple of tensors `(batch_x, batch_y)`.
+        output_transform (callable, optional): function that receives 'x', 'y', 'y_pred', 'loss' and returns value
+            to be assigned to engine's state.output after each iteration. Default is returning `loss.item()`.
+
+    Note: `engine.state.output` for this engine is defind by `output_transform` parameter and is the loss
+        of the processed batch by default.
+
+    Returns:
+        Engine: a trainer engine with supervised update function.
+    """
+    if device:
+        model.to(device)
+
+    def _update(engine, batch):
+        model.train()
+        optimizer.zero_grad()
+        x, y = prepare_batch(batch, device=device, non_blocking=non_blocking)
+        y_pred = model(x)
+        loss = loss_fn(y_pred, y)
+        loss.backward()
+        if clip_val is not None:
+            clip_grad_norm_(filter(lambda x: x.requires_grad, model.parameters()), clip_val, -clip_val)
+        optimizer.step()
+        return output_transform(x, y, y_pred, loss)
+
+    return Engine(_update)

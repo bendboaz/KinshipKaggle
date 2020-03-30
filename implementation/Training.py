@@ -23,8 +23,9 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                    device=None, base_lr=1e-4, max_lr=1e-3, lr_gamma=0.9,
                    lr_decay_iters: Optional[Union[int, float]] = None, weight_decay=0.0,
                    loss_func=None, n_epochs=1, patience=-1, data_augmentation=True, weight_reg_coef=0.0,
-                   combination_module=simple_concatenation, combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2,
-                   simple_fc_layers=None, custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
+                   grad_clip_val=None, combination_module=simple_concatenation,
+                   combination_size=KinshipClassifier.FACENET_OUT_SIZE * 2, simple_fc_layers=None,
+                   custom_fc_layers=None, final_fc_layers=None, train_ds_name=None,
                    dev_ds_name=None, logging_rate=-1, saving_rate=-1, experiment_name=None, checkpoint_name=None,
                    hof_size=1, checkpoint_exp=None, data_path=None, verbose=True):
     if device is None:
@@ -90,10 +91,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         l1_loss = sum(map(torch.abs, model.combination_module.weights))
         if l1_loss == float('nan') or l1_loss == float('inf') or l1_loss == float('-inf'):
             raise ValueError(f"Regularization loss is {l1_loss}!")
-        return loss_func(y, y_pred) + l1_loss
+        return loss_func(y, y_pred) + weight_reg_coef * l1_loss
 
-    train_engine = create_supervised_trainer(model, optimizer, loss_fn=regularized_loss, device=device,
-                                             non_blocking=non_blocking)
+    train_engine = create_custom_trainer(model, optimizer, loss_fn=regularized_loss, clip_val=grad_clip_val,
+                                         device=device, non_blocking=non_blocking)
 
     if checkpoint_exp is not None and checkpoint_name is not None and verbose:
         experiment_dir = os.path.join(project_path, 'experiments', checkpoint_exp)
