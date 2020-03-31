@@ -21,13 +21,13 @@ from implementation.Utils import *
 
 def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, non_blocking=True, augment=True,
                      device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
-                     n_trials=10, patience=-1):
+                     n_trials=10, patience=-1, data_dir=None):
     base_lr = dict(name='base_lr', bounds=[1e-6, 1e-3], type='range', log_scale=True)
     max_lr = dict(name='max_lr', bounds=[1e-5, 1e-2], type='range', log_scale=True)
     lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.3, 1.0], type='range')
     weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range', log_scale=True)
     regularization_strength = dict(name='weight_reg_coef', bounds=[1e-2, 5e-1], type='range')
-    gradient_clipping = dict(name='grad_clip_val', bounds=[0.5, 4], type='range')
+    gradient_clipping = dict(name='grad_clip_val', bounds=[0.5, 4.0], type='range')
     lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range', log_scale=True)
     simple_1 = dict(name='simple_1', bounds=[128, 1536], type='range', log_scale=True)
     simple_2 = dict(name='simple_2', bounds=[128, 1024], type='range', log_scale=True)
@@ -50,8 +50,8 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
         clip_val = parameters['grad_clip_val']
 
         nonlocal trial_counter
-
-        combinator = PairCombinationModule(feature_combination_list, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
+        chosen_combinations = [feature_combination_list[i] for i in [0, 1, 3, 8]]
+        combinator = PairCombinationModule(chosen_combinations, KinshipClassifier.FACENET_OUT_SIZE, 0.7)
         print("Training parameters: ")
         print(parameters)
         model, metrics = finetune_model(KinshipClassifier, project_path, batch_size,
@@ -64,7 +64,7 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
                                         dev_ds_name=dev_ds_name, pin_memory=pin_memory, non_blocking=non_blocking,
                                         data_augmentation=augment, logging_rate=logging_rate, loss_func=loss_func,
                                         patience=patience, experiment_name=f'htune_{trial_counter}', saving_rate=1000,
-                                        verbose=False)
+                                        verbose=False, data_path=data_dir)
         trial_counter += 1
         print("Validation score: ", metrics['final_dev_score'])
         return metrics['final_dev_score']
@@ -82,15 +82,16 @@ def find_best_hypers(project_path, batch_size, num_workers=0, pin_memory=True, n
 
 if __name__ == "__main__":
 
-    batch_size = 82
+    batch_size = 512
     num_workers = 8
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
     train_ds = 'dev'
-    dev_ds = 'mini'
+    dev_ds = 'subtrain'
+    DATA_DIR = '/home/boaz.ben-dov/gdrive/Colab Notebooks/KinshipKaggle/data/'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, batch_size, num_workers, device=device,
-                                                              n_epochs=4, train_ds_name=train_ds, dev_ds_name=dev_ds,
-                                                              augment=True, patience=3)
+                                                              n_epochs=12, train_ds_name=train_ds, dev_ds_name=dev_ds,
+                                                              augment=True, patience=3, data_dir=DATA_DIR)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
     with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.res'), 'w+') as f:
         json.dump(results, f)
