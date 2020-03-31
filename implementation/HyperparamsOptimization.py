@@ -1,5 +1,6 @@
 import os
 import pickle
+import json
 from implementation.Training import PROJECT_ROOT
 
 from ax import *
@@ -91,5 +92,5 @@ if __name__ == "__main__":
                                                               n_epochs=4, train_ds_name=train_ds, dev_ds_name=dev_ds,
                                                               augment=True, patience=3)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
-    with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.pkl'), 'wb+') as f:
-        pickle.dump(results, f)
+    with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.res'), 'w+') as f:
+        json.dump(results, f)
