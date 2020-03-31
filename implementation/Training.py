@@ -165,11 +165,7 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     to_save = None
     output_path = None
 
-    if saving_rate > 0 and verbose:
-        if experiment_name is None:
-            print("Warning: saving rate specified but experiment name is None")
-            exit()
-
+    if experiment_name is not None:
         experiment_path = os.path.join(project_path, 'experiments', experiment_name)
         if not os.path.isdir(experiment_path):
             os.mkdir(experiment_path)
@@ -177,18 +173,20 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         with open(os.path.join(experiment_path, 'model.config'), 'wb+') as config_file:
             pickle.dump(model.get_configuration(), config_file)
 
-        to_save = {'model': model,
-                   'optimizer': optimizer,
-                   'loss_func': loss_func,
-                   'lr_scheduler': lr_scheduler,
-                   'train_engine': train_engine}
-        output_path = experiment_path
+        if hof_size > 0:
+            best_models_dir = os.path.join(experiment_path, 'best_models')
+            if not os.path.isdir(best_models_dir):
+                os.mkdir(best_models_dir)
+            common.save_best_model_by_val_score(best_models_dir, eval_engine, model, 'accuracy', n_saved=hof_size,
+                                                trainer=train_engine, tag='acc')
 
-        best_models_dir = os.path.join(output_path, 'best_models')
-        if not os.path.isdir(best_models_dir):
-            os.mkdir(best_models_dir)
-        common.save_best_model_by_val_score(best_models_dir, eval_engine, model, 'accuracy', n_saved=hof_size,
-                                            trainer=train_engine, tag='acc')
+        if saving_rate > 0 and verbose:
+            to_save = {'model': model,
+                       'optimizer': optimizer,
+                       'loss_func': loss_func,
+                       'lr_scheduler': lr_scheduler,
+                       'train_engine': train_engine}
+            output_path = experiment_path
 
         # Replaced by setup_common_training_handlers
         # checkpointer = ModelCheckpoint(experiment_path, 'iter', n_saved=50,
