@@ -47,7 +47,6 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
         weight_decay = parameters['weight_decay']
         lr_gamma = parameters['lr_gamma']
         reg_strength = parameters['weight_reg_coef']
-        clip_val = parameters['grad_clip_val']
         batch_size = parameters['batch_size']
 
         nonlocal trial_counter
@@ -58,7 +57,7 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
         model, metrics = finetune_model(KinshipClassifier, project_path, batch_size=batch_size,
                                         num_workers=num_workers, device=device, base_lr=base_lr, max_lr=max_lr,
                                         lr_gamma=lr_gamma, lr_decay_iters=lr_decay_iters, n_epochs=n_epochs,
-                                        weight_decay=weight_decay, grad_clip_val=clip_val, weight_reg_coef=reg_strength,
+                                        weight_decay=weight_decay, weight_reg_coef=reg_strength,
                                         simple_fc_layers=simple_fc_layers, custom_fc_layers=custom_fc_layers,
                                         final_fc_layers=final_fc_layers, combination_module=combinator,
                                         combination_size=combinator.output_size(), train_ds_name=train_ds_name,
