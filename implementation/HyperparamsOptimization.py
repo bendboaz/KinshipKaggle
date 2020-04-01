@@ -22,7 +22,7 @@ from implementation.Utils import *
 def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=True, augment=True,
                      device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
                      n_trials=10, patience=-1, data_dir=None):
-    base_lr = dict(name='base_lr', bounds=[1e-7, 1e-4], type='range', log_scale=True)
+    base_lr = dict(name='base_lr', bounds=[1e-7, 1e-5], type='range', log_scale=True)
     max_lr = dict(name='max_lr', bounds=[1e-5, 1e-2], type='range', log_scale=True)
     lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.6, 1.0], type='range')
     lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range', log_scale=True)
@@ -72,9 +72,6 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
     optimization_results = optimize(parameters=[simple_1, simple_2, custom_1, custom_2, final_1, final_2, base_lr,
                                                 regularization_strength, max_lr, lr_decay_iters,
                                                 lr_gamma, weight_decay, batch_size],
-                                    parameter_constraints=['final_1 >= final_2',
-                                                           'custom_1 >= custom_2',
-                                                           'max_lr >= base_lr'],
                                     evaluation_function=_objective,
                                     experiment_name='optimizing',
                                     minimize=True,
