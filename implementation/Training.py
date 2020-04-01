@@ -11,6 +11,8 @@ from ignite.metrics import Accuracy, Loss
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 from ignite.contrib.engines import common
 
+from tqdm import tqdm
+
 from implementation.Models import KinshipClassifier, PairCombinationModule
 from implementation.DataHandling import KinshipDataset
 from implementation.Utils import *
@@ -147,14 +149,14 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     if verbose:
         @train_engine.on(Events.EPOCH_COMPLETED)
         def print_training_metrics(engine):
-            print(f"Finished epoch {engine.state.epoch}")
+            tqdm.write(f"Finished epoch {engine.state.epoch}")
             if train_ds_name == dev_ds_name:
-                print(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
+                tqdm.write(f"Epoch {engine.state.epoch}: CE = {engine.state.output}")
                 metrics['final_dev_loss'] = engine.state.output
                 return
             eval_engine.run(dataloaders['dev'])
             metrics['final_dev_loss'] = eval_engine.state.metrics['cross_entropy']
-            print(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
+            tqdm.write(f"Epoch {engine.state.epoch}: CE = {eval_engine.state.metrics['cross_entropy']}, "
                   f"Acc = {eval_engine.state.metrics['accuracy']}")
 
     # Replaced by setup_common_training_handlers
