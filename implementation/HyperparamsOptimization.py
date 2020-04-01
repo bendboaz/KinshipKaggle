@@ -83,8 +83,8 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
 if __name__ == "__main__":
     num_workers = 8
     device = torch.device(torch.cuda.current_device()) if torch.cuda.is_available() else torch.device('cpu')
-    train_ds = 'dev'
-    dev_ds = 'subtrain'
+    train_ds = 'train'
+    dev_ds = 'dev'
     DATA_DIR = '/home/boaz.ben-dov/gdrive/Colab Notebooks/KinshipKaggle/data/'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, num_workers, device=device,
