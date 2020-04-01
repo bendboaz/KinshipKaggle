@@ -12,15 +12,19 @@ from ignite.engine import Engine, _prepare_batch
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU):
+def get_dense_block(input_size, hidden_sizes, activation=nn.ReLU, dropout_prob=0.0):
     hiddens = []
     simple_past_layer = input_size
     for layer_size in hidden_sizes:
         hiddens.append(nn.Linear(simple_past_layer, layer_size))
         hiddens.append(activation())
+        hiddens.append(nn.Dropout(dropout_prob))
         simple_past_layer = layer_size
 
-    hiddens.pop(-1)
+    if len(hiddens) > 0:  # Pop last activation and dropout
+        hiddens.pop(-1)
+        hiddens.pop(-1)
+
     return nn.Sequential(*hiddens)
 
 

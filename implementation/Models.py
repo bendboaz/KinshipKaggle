@@ -51,13 +51,14 @@ class KinshipClassifier(nn.Module):
     FACENET_OUT_SIZE = 512
 
     def __init__(self, combination_module, combination_size, simple_fc_sizes: List[int], custom_fc_sizes: List[int],
-                 final_fc_sizes: List[int]) -> None:
+                 final_fc_sizes: List[int], fc_dropout=0.6) -> None:
         super().__init__()
         self.combination_module = combination_module
         self.combination_size = combination_size
         self.simple_fc_sizes = simple_fc_sizes
         self.custom_fc_sizes = custom_fc_sizes
         self.final_fc_sizes = final_fc_sizes
+        self.fc_dropout_prob = fc_dropout
 
         self.facenet = InceptionResnetV1(pretrained='vggface2')
         for param in self.facenet.parameters(recurse=True):
@@ -65,16 +66,19 @@ class KinshipClassifier(nn.Module):
 
         self.facenet.last_linear = nn.Linear(1792, self.FACENET_OUT_SIZE)
         self.post_facenet_activation = nn.ReLU()
+        self.post_facenet_dropout = nn.Dropout(self.fc_dropout_prob)
 
-        self.simple_fc = get_dense_block(self.FACENET_OUT_SIZE * 2, simple_fc_sizes, nn.ReLU)
+        self.simple_fc = get_dense_block(self.FACENET_OUT_SIZE * 2, simple_fc_sizes, nn.ReLU,
+                                         dropout_prob=self.fc_dropout_prob)
 
-        self.custom_fc = get_dense_block(self.combination_size, custom_fc_sizes, nn.ReLU)
+        self.custom_fc = get_dense_block(self.combination_size, custom_fc_sizes, nn.ReLU,
+                                         dropout_prob=self.fc_dropout_prob)
 
-        self.before_classification_activation = nn.ReLU()
+        self.pre_classification_activation = nn.ReLU()
         self.final_bn = nn.BatchNorm1d(simple_fc_sizes[-1] + custom_fc_sizes[-1])
 
         self.classification_fc = get_dense_block(simple_fc_sizes[-1] + custom_fc_sizes[-1], final_fc_sizes + [2],
-                                                 nn.ReLU)
+                                                 nn.ReLU, dropout_prob=self.fc_dropout_prob)
 
     def forward(self, inputs, **kwargs):
         img1_batch = inputs[:, 0].squeeze(1)
@@ -84,11 +88,11 @@ class KinshipClassifier(nn.Module):
         img2_features = self.post_facenet_activation(self.facenet(img2_batch))
 
         simple_branch = torch.cat([img1_features, img2_features], 1)
-        simple_branch = self.before_classification_activation(self.simple_fc(simple_branch))
+        simple_branch = self.pre_classification_activation(self.simple_fc(simple_branch))
 
         custom_branch = self.combination_module(img1_features, img2_features)
         custom_branch = self.custom_fc(custom_branch)
-        custom_branch = self.before_classification_activation(custom_branch)
+        custom_branch = self.pre_classification_activation(custom_branch)
 
         concat_vector = torch.cat([simple_branch, custom_branch], dim=1)
         concat_vector = self.final_bn(concat_vector)
