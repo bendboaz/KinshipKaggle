@@ -21,7 +21,7 @@ from implementation.Utils import *
 
 def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=True, augment=True,
                      device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
-                     n_trials=10, patience=-1, data_dir=None):
+                     n_trials=10, patience=-1, data_dir=None, exp_name='htune'):
     base_lr = dict(name='base_lr', bounds=[1e-7, 1e-6], type='range', log_scale=True)
     max_lr = dict(name='max_lr', bounds=[1e-4, 1e-2], type='range', log_scale=True)
     lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.6, 1.0], type='range')
@@ -63,7 +63,7 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
                                         combination_size=combinator.output_size(), train_ds_name=train_ds_name,
                                         dev_ds_name=dev_ds_name, pin_memory=pin_memory, non_blocking=non_blocking,
                                         data_augmentation=augment, logging_rate=logging_rate, loss_func=loss_func,
-                                        patience=patience, experiment_name=f'htune_{trial_counter}', saving_rate=1000,
+                                        patience=patience, experiment_name=f'{exp_name}_{trial_counter}', saving_rate=1000,
                                         verbose=False, data_path=data_dir)
         trial_counter += 1
         print("Validation score: ", metrics['final_dev_score'])
@@ -86,10 +86,11 @@ if __name__ == "__main__":
     train_ds = 'train'
     dev_ds = 'dev'
     DATA_DIR = '/home/boaz.ben-dov/gdrive/Colab Notebooks/KinshipKaggle/data/'
+    exp_name = 'htune_2'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, num_workers, device=device,
                                                               n_epochs=13, train_ds_name=train_ds, dev_ds_name=dev_ds,
-                                                              augment=True, patience=4, data_dir=DATA_DIR, n_trials=12)
+                                                              augment=True, patience=4, data_dir=DATA_DIR, n_trials=12, exp_name=exp_name)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
     with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.res'), 'w+') as f:
         json.dump(results, f)
