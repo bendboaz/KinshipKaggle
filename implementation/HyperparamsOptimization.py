@@ -22,13 +22,13 @@ from implementation.Utils import *
 def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=True, augment=True,
                      device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
                      n_trials=10, patience=-1, data_dir=None, exp_name='htune'):
-    base_lr = dict(name='base_lr', bounds=[1e-7, 1e-6], type='range', log_scale=True)
-    max_lr = dict(name='max_lr', bounds=[1e-4, 1e-2], type='range', log_scale=True)
+    base_lr = dict(name='base_lr', bounds=[1e-7, 1e-5], type='range')
+    max_lr = dict(name='max_lr', bounds=[1e-4, 1e-2], type='range')
     lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.6, 1.0], type='range')
-    lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range', log_scale=True)
-    weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range', log_scale=True)
-    regularization_strength = dict(name='weight_reg_coef', bounds=[1e-3, 1e-1], type='range', log_scale=True)
-    batch_size = dict(name='batch_size', bounds=[32, 256], type='range', log_scale=True)
+    lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range')
+    weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range')
+    regularization_strength = dict(name='weight_reg_coef', bounds=[1e-3, 1e-1], type='range')
+    batch_size = dict(name='batch_size', bounds=[32, 200], type='range', log_scale=True)
     simple_1 = dict(name='simple_1', bounds=[128, 1536], type='range', log_scale=True)
     simple_2 = dict(name='simple_2', bounds=[128, 1024], type='range', log_scale=True)
     custom_1 = dict(name='custom_1', bounds=[1024, 3072], type='range', log_scale=True)
@@ -74,7 +74,7 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
                                                 lr_gamma, weight_decay, batch_size],
                                     evaluation_function=_objective,
                                     experiment_name='optimizing',
-                                    minimize=True,
+                                    minimize=False,
                                     total_trials=n_trials)
 
     return optimization_results
