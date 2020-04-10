@@ -93,4 +93,4 @@ if __name__ == "__main__":
                                                               augment=True, patience=4, data_dir=DATA_DIR, n_trials=12, exp_name=exp_name)
     results = {'best_params': best_params, 'values': values, 'experiment': experiment, 'model': model}
     with open(os.path.join(PROJECT_ROOT, 'models', 'optimize_test.res'), 'w+') as f:
-        json.dump(results, f)
+        json.dump(results[:2], f)
