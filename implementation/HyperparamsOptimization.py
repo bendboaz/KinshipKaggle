@@ -23,24 +23,23 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
                      device=None, loss_func=None, n_epochs=1, train_ds_name=None, dev_ds_name=None, logging_rate=-1,
                      n_trials=10, patience=-1, data_dir=None, exp_name='htune'):
     base_lr = dict(name='base_lr', bounds=[1e-7, 1e-5], type='range')
-    max_lr = dict(name='max_lr', bounds=[1e-4, 1e-2], type='range')
+    max_lr = dict(name='max_lr', bounds=[1e-5, 1e-3], type='range')
     lr_decay_iters = dict(name='lr_decay_iters', bounds=[0.6, 1.0], type='range')
-    lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.99], type='range')
+    lr_gamma = dict(name='lr_gamma', bounds=[0.4, 0.8], type='range')
     weight_decay = dict(name='weight_decay', bounds=[1e-3, 1e-1], type='range')
     regularization_strength = dict(name='weight_reg_coef', bounds=[1e-3, 1e-1], type='range')
-    batch_size = dict(name='batch_size', bounds=[32, 200], type='range', log_scale=True)
-    simple_1 = dict(name='simple_1', bounds=[128, 1536], type='range', log_scale=True)
-    simple_2 = dict(name='simple_2', bounds=[128, 1024], type='range', log_scale=True)
+    batch_size = dict(name='batch_size', bounds=[32, 192], type='range', log_scale=True)
+    simple_1 = dict(name='simple_1', bounds=[128, 2048], type='range', log_scale=True)
     custom_1 = dict(name='custom_1', bounds=[1024, 3072], type='range', log_scale=True)
     custom_2 = dict(name='custom_2', bounds=[256, 1024], type='range', log_scale=True)
     final_1 = dict(name='final_1', bounds=[256, 2048], type='range', log_scale=True)
-    final_2 = dict(name='final_2', bounds=[32, 512], type='range', log_scale=True)
 
     trial_counter = 0
+
     def _objective(parameters):
-        simple_fc_layers = [parameters['simple_1'], parameters['simple_2']]
+        simple_fc_layers = [parameters['simple_1']]
         custom_fc_layers = [parameters['custom_1'], parameters['custom_2']]
-        final_fc_layers = [parameters['final_1'], parameters['final_2']]
+        final_fc_layers = [parameters['final_1']]
         base_lr = parameters['base_lr']
         max_lr = parameters['max_lr']
         lr_decay_iters = parameters['lr_decay_iters']
@@ -73,7 +72,7 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
         print("Validation score: ", metrics['final_dev_score'])
         return metrics['final_dev_score']
 
-    optimization_results = optimize(parameters=[simple_1, simple_2, custom_1, custom_2, final_1, final_2, base_lr,
+    optimization_results = optimize(parameters=[simple_1, custom_1, custom_2, final_1, base_lr,
                                                 regularization_strength, max_lr, lr_decay_iters,
                                                 lr_gamma, weight_decay, batch_size],
                                     evaluation_function=_objective,
@@ -90,7 +89,7 @@ if __name__ == "__main__":
     train_ds = 'train'
     dev_ds = 'dev'
     DATA_DIR = '/home/boaz.ben-dov/gdrive/Colab Notebooks/KinshipKaggle/data/'
-    exp_name = 'htune_2'
+    exp_name = 'htune_3'
 
     best_params, values, experiment, model = find_best_hypers(PROJECT_ROOT, num_workers, device=device,
                                                               n_epochs=13, train_ds_name=train_ds, dev_ds_name=dev_ds,
