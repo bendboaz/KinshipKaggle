@@ -65,7 +65,7 @@ def find_best_hypers(project_path, num_workers=0, pin_memory=True, non_blocking=
                                         patience=patience, experiment_name=f'{exp_name}_{trial_counter}', saving_rate=1000,
                                         verbose=False, data_path=data_dir)
 
-        with open(os.path.join(PROJECT_ROOT, 'experiments', f'{exp_name}_{trial_counter}'), 'w+') as file:
+        with open(os.path.join(PROJECT_ROOT, 'experiments', f'{exp_name}_{trial_counter}', 'parameters.json'), 'w+') as file:
             json.dump({'parameters': parameters, 'score': metrics['final_dev_score']}, file)
 
         trial_counter += 1
