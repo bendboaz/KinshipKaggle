@@ -188,7 +188,6 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
         if saving_rate > 0 and verbose:
             to_save = {'model': model,
                        'optimizer': optimizer,
-                       'loss_func': loss_func,
                        'lr_scheduler': lr_scheduler,
                        'train_engine': train_engine}
             output_path = experiment_path
