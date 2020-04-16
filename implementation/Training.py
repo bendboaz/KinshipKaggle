@@ -101,9 +101,10 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
     if checkpoint_exp is not None and checkpoint_name is not None and verbose:
         experiment_dir = os.path.join(project_path, 'experiments', checkpoint_exp)
         model, optimizer, loss_func, lr_scheduler, train_engine = load_checkpoint(model_class, experiment_dir,
-                                                                                  checkpoint_name, device)
+                                                                                  checkpoint_name, device, loss_func=regularized_loss)
+        train_engine.state.max_epochs += n_epochs                                                                                  
 
-    eval_engine = create_supervised_evaluator(model, metrics=dict(accuracy=Accuracy(), cross_entropy=Loss(loss_func)),
+    eval_engine = create_supervised_evaluator(model, metrics=dict(accuracy=Accuracy(), cross_entropy=Loss(regularized_loss)),
                                               device=device, non_blocking=non_blocking)
 
     metrics = {}

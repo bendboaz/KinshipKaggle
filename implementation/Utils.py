@@ -103,7 +103,7 @@ def plot_metric(values, title, y_label, index_scale=1, figs_path=None, **kwargs)
     plt.close(fig)
 
 
-def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
+def load_checkpoint(model_class, experiment_dir, checkpoint_name, device, loss_func=None):
     with open(os.path.join(experiment_dir, 'model.config'), 'rb') as config_file:
         config = pickle.load(config_file)
 
@@ -114,8 +114,11 @@ def load_checkpoint(model_class, experiment_dir, checkpoint_name, device):
     model.to(device)
     optimizer = torch.optim.AdamW(filter(lambda x: x.requires_grad, model.parameters()))
     optimizer.load_state_dict(state_dicts['optimizer'])
-    loss_func = nn.CrossEntropyLoss()
-    loss_func.load_state_dict(state_dicts['loss_func'])
+    
+    if loss_func is None:
+        loss_func = nn.CrossEntropyLoss()
+        loss_func.load_state_dict(state_dicts['loss_func'])
+    
     train_engine = create_custom_trainer(model, optimizer, loss_func, device, non_blocking=True)
     train_engine.load_state_dict(state_dicts['train_engine'])
     lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-4, max_lr=5e-3, gamma=0.9,
