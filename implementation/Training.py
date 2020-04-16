@@ -89,11 +89,12 @@ def finetune_model(model_class, project_path, batch_size, num_workers=0, pin_mem
                                                step_size_down=stepsize_down, mode='exp_range', gamma=lr_gamma,
                                                cycle_momentum=False)
 
+    unregularized_loss = loss_func
     def regularized_loss(y, y_pred):
         l1_loss = sum(map(torch.abs, model.combination_module.weights))
         if l1_loss == float('nan') or l1_loss == float('inf') or l1_loss == float('-inf'):
             raise ValueError(f"Regularization loss is {l1_loss}!")
-        return loss_func(y, y_pred) + weight_reg_coef * l1_loss
+        return unregularized_loss(y, y_pred) + weight_reg_coef * l1_loss
 
     train_engine = create_custom_trainer(model, optimizer, loss_fn=regularized_loss, clip_val=grad_clip_val,
                                          device=device, non_blocking=non_blocking)
