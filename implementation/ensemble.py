@@ -42,7 +42,7 @@ class NetworkEnsemble(nn.Module):
             parameters = torch.load(param_file)
             model.load_state_dict(parameters)
             self.models.append(model)
-            self.register_parameter(os.path.split(path)[1], model)
+            self.add_module(os.path.split(path)[1], model)
 
         for param in self.parameters():
             param.requires_grad = False
