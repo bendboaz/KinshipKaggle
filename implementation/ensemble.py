@@ -80,7 +80,7 @@ def threshold_selector(scores: Iterable[float], threshold: float = 0.0):
 
 
 def topk_selector(scores: Iterable[float], k: int = 1):
-    return sorted(enumerate(scores), key=lambda pair: pair[1], reverse=True)[:k]
+    return list(map(lambda x: x[0], sorted(enumerate(scores), key=lambda pair: pair[1], reverse=True)[:k]))
 
 
 def test_ensemble(data_path: str, model_paths: List[str], threshold: Optional[float], top_k: Optional[int],
