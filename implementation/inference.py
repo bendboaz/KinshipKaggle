@@ -21,7 +21,8 @@ def infer(data_path, models_list, decision_type, threshold, top_k, batch_size, d
 
     raw_test_path = os.path.join(data_path, 'raw', 'test')
     test_pickle_path = os.path.join(data_path, 'test.pkl')
-    test_set = KinshipDataset.get_test_dataset(test_pickle_path, raw_test_path)
+    sample_submssion_path = os.path.join(data_path, 'raw', 'sample_submission.csv')
+    test_set = KinshipDataset.get_test_dataset(test_pickle_path, raw_test_path, sample_path=sample_submssion_path)
     results = {'img_pair': [], 'is_related': []}
 
     selector = None

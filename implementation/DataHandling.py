@@ -50,7 +50,7 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path, data_augmentation=True, is_test=False):
+    def __init__(self, path, labels_path, data_augmentation=True, is_test=False, sample_path=None):
         super(Dataset, self).__init__()
         self.path = path
         self.data_augmentation = data_augmentation
@@ -58,9 +58,15 @@ class KinshipDataset(Dataset):
         self.allpairs = []
 
         if self.is_test:
-            self.images = read_test_dataset(self.path)
-            for img1, img2 in filter(lambda x: x[0] != x[1], product(self.images, repeat=2)):
-                self.allpairs.append(((img1, img2), f'{img1}-{img2}'))
+            if sample_path is None:
+                raise ValueError('Creating test dataset. Expected a path to sample_submission.csv, got None.')
+            sample_pairs = pd.read_csv(sample_path)['img_pairs'].tolist()
+
+            for pair in sample_pairs:
+                img1, img2 = pair.split('-')
+                assert (os.path.isfile(os.path.join(self.path, img1))
+                        and os.path.isfile(os.path.join(self.path, img2)))
+                self.allpairs.append(((img1, img2), pair))
         else:
             self.families = read_train_dataset(path)
             labels = pd.read_csv(labels_path)
@@ -137,7 +143,7 @@ class KinshipDataset(Dataset):
         return dataset
 
     @classmethod
-    def get_test_dataset(cls, pickled_path, raw_path=None):
+    def get_test_dataset(cls, pickled_path, raw_path=None, sample_path=None):
         to_save = False
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
@@ -150,7 +156,7 @@ class KinshipDataset(Dataset):
                 to_save = True
         else:
             to_save = True
-            dataset = cls(raw_path, None, data_augmentation=False, is_test=True)
+            dataset = cls(raw_path, None, data_augmentation=False, is_test=True, sample_path=sample_path)
         if to_save:
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
