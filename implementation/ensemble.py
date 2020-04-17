@@ -31,7 +31,6 @@ class NetworkEnsemble(nn.Module):
 
         paths_iterator = filter(model_filter, model_paths) if model_filter is not None else model_paths
         for path in paths_iterator:
-            print(f"Loading model from {path}")
             model_config_path = os.path.join(path, 'model.config')
             model_params_path = os.path.join(path, 'best_models')
             # If no models are present, OS error will raise:
