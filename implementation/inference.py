@@ -52,7 +52,7 @@ def infer(data_path, models_list, decision_type, threshold, top_k, batch_size, d
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('data_path', type=str)
-    parser.add_argument('experiments_path', type=str)
+    parser.add_argument('experiments_dir', type=str)
     parser.add_argument('--decision_type', nargs='*', choices=['AVG_POOLING', 'VOTING'])
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--top_k', type=int, default=None)
