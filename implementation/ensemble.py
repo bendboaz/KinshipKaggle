@@ -13,8 +13,8 @@ from ignite.engine import create_supervised_evaluator
 from ignite.metrics import Accuracy
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
-from .DataHandling import KinshipDataset
-from .Models import KinshipClassifier
+from implementation.DataHandling import KinshipDataset
+from implementation.Models import KinshipClassifier
 
 
 class NetworkEnsemble(nn.Module):
