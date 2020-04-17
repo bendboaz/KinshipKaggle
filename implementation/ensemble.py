@@ -102,7 +102,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('experiments_dir', type=str)
     parser.add_argument('--data_path', type=str, default=None)
-    parser.add_argument('--decision_type', choices=['AVG_POOL', 'VOTING'], default='VOTING')
+    parser.add_argument('--decision_type', choices=['AVG_POOLING', 'VOTING'], default='VOTING')
     parser.add_argument('--threshold', type=float, default=None)
 
     args = parser.parse_args()
