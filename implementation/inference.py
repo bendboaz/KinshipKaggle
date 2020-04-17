@@ -73,6 +73,6 @@ if __name__ == '__main__':
         os.makedirs(args.save_dir)
 
     for decision_method in args.decision_type:
-        results_df = infer(args.data_path, ALL_MODELS, NetworkEnsemble.DecisionMechanism[args.decision_type],
+        results_df = infer(args.data_path, full_paths, NetworkEnsemble.DecisionMechanism[decision_method],
                            args.threshold, args.top_k, args.batch_size, device, args.num_workers)
         results_df.to_csv(os.path.join(args.save_dir, f'{decision_method}.csv'))
