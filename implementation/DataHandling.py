@@ -60,7 +60,7 @@ class KinshipDataset(Dataset):
         if self.is_test:
             if sample_path is None:
                 raise ValueError('Creating test dataset. Expected a path to sample_submission.csv, got None.')
-            sample_pairs = pd.read_csv(sample_path)['img_pairs'].tolist()
+            sample_pairs = pd.read_csv(sample_path)['img_pair'].tolist()
 
             for pair in sample_pairs:
                 img1, img2 = pair.split('-')
