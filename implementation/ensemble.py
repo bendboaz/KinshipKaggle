@@ -52,7 +52,7 @@ class NetworkEnsemble(nn.Module):
         scores = torch.stack([model(input) for model in self.models], dim=0)
         if self.decision_mechanism == self.DecisionMechanism.VOTING:
             predictions = scores.max(-1)[1]
-            prediction_scores = to_onehot(predictions, self.num_classes).sum(dim=0).type(torch.float)
+            prediction_scores = to_onehot(predictions, self.num_classes).sum(dim=0).transpose(0, 1).type(torch.float)
         elif self.decision_mechanism == self.DecisionMechanism.AVG_POOLING:
             prediction_scores = torch.mean(scores, 0)
         else:
