@@ -38,7 +38,7 @@ def read_train_dataset(path):
 
 
 def read_test_dataset(path):
-    return {[name] for name in os.listdir(path)}
+    return [[name] for name in os.listdir(path)]
 
 
 class KinshipDataset(Dataset):
