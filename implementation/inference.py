@@ -40,8 +40,8 @@ def infer(data_path, models_list, decision_type, threshold, top_k, batch_size, d
     for pairs, names in tqdm(loader, total=len(loader)):
         pairs = pairs.to(device, non_blocking=True)
         results['img_pair'].extend(names)
-        results = model(pairs)
-        predictions = torch.max(results, -1)[1].type(torch.int)
+        predictions = model(pairs)
+        predictions = torch.max(predictions, -1)[1].type(torch.int)
         results['is_related'].extend(predictions.tolist())
 
     results_df = pd.DataFrame.from_dict(results, orient='columns')
