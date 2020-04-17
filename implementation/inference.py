@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('data_path', type=str)
     parser.add_argument('experiments_dir', type=str)
-    parser.add_argument('--decision_type', nargs='*', choices=['AVG_POOLING', 'VOTING'])
+    parser.add_argument('--decision_type', type=str, nargs='*', choices=['AVG_POOLING', 'VOTING'])
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--top_k', type=int, default=None)
     parser.add_argument('--batch_size', type=int, default=50)
@@ -62,10 +62,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    full_paths = list(map(lambda exp: os.path.join(args.experiments_dir, exp), ALL_MODELS))
+    full_paths = list(map(lambda exp: os.path.join(args.experiments_path, exp), ALL_MODELS))
     data_path = args.data_path
     if data_path is None:
-        data_path = os.path.dirname(args.experiments_dir)
+        data_path = os.path.dirname(args.experiments_path)
 
     device = torch.cuda.current_device() if torch.cuda.is_available() else None
 
