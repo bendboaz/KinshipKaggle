@@ -66,7 +66,7 @@ class KinshipDataset(Dataset):
                 img1, img2 = pair.split('-')
                 assert (os.path.isfile(os.path.join(self.path, img1))
                         and os.path.isfile(os.path.join(self.path, img2)))
-                self.allpairs.append(((img1, img2), pair))
+                self.allpairs.append((([img1], [img2]), pair))
         else:
             self.families = read_train_dataset(path)
             labels = pd.read_csv(labels_path)
