@@ -1,9 +1,10 @@
 import os
-from typing import Any, List, Callable, Optional
+from typing import Any, List, Callable, Optional, Iterable
 from enum import Enum
 import pickle
 import re
 from argparse import ArgumentParser
+from functools import partial
 
 import torch
 from torch import nn
@@ -23,14 +24,19 @@ class NetworkEnsemble(nn.Module):
         AVG_POOLING = 1
 
     def __init__(self, model_paths: List[str], decision: DecisionMechanism = DecisionMechanism.VOTING,
-                 num_classes: int = 2, model_filter: Callable[[str], bool] = None) -> None:
+                 num_classes: int = 2, model_score: Callable[[str], float] = None,
+                 model_selector: Callable[[Iterable[float]], List[int]] = None) -> None:
         super().__init__()
         self.decision_mechanism = decision
         self.num_classes = num_classes
         self.models = []
 
-        paths_iterator = filter(model_filter, model_paths) if model_filter is not None else model_paths
-        for path in paths_iterator:
+        selected_models = model_paths
+        if model_score is not None and model_selector is not None:
+            selected_indices = model_selector(map(model_score, model_paths))
+            selected_models = [model_paths[idx] for idx in sorted(selected_indices)]
+
+        for path in selected_models:
             print(f"Loading model from {path}")
             model_config_path = os.path.join(path, 'model.config')
             model_params_path = os.path.join(path, 'best_models')
@@ -61,19 +67,25 @@ class NetworkEnsemble(nn.Module):
         return prediction_scores
 
 
-def accuracy_thresholding(threshold: float):
-    def predicate(model_path: str):
-        best_models_path = os.path.join(model_path, 'best_models')
-        params_file_name = os.listdir(best_models_path)[0]
-        acc_regex = re.compile(r'\w*accuracy=(\d+\.\d+)\.pth')
-        score_str = acc_regex.match(params_file_name).group(1)
-        return float(score_str) >= threshold
-
-    return predicate
+def accuracy_extractor(model_path: str):
+    best_models_path = os.path.join(model_path, 'best_models')
+    params_file_name = os.listdir(best_models_path)[0]
+    acc_regex = re.compile(r'\w*accuracy=(\d+\.\d+)\.pth')
+    score_str = acc_regex.match(params_file_name).group(1)
+    return float(score_str)
 
 
-def test_ensemble(data_path: str, model_paths: List[str], threshold: Optional[float], sample_set: str,
-                  decision: NetworkEnsemble.DecisionMechanism, device=None, batch_size=50, num_workers=4):
+def threshold_selector(scores: Iterable[float], threshold: float = 0.0):
+    return list(map(lambda pair: pair[0], filter(lambda ind_score: ind_score[1] >= threshold, enumerate(scores))))
+
+
+def topk_selector(scores: Iterable[float], k: int = 1):
+    return sorted(enumerate(scores), key=lambda pair: pair[1], reverse=True)[:k]
+
+
+def test_ensemble(data_path: str, model_paths: List[str], threshold: Optional[float], top_k: Optional[int],
+                  sample_set: str, decision: NetworkEnsemble.DecisionMechanism, device=None, batch_size=50,
+                  num_workers=4):
     device = torch.device(device if device is not None else 'cpu')
     processed_path = os.path.join(data_path, 'processed')
 
@@ -86,8 +98,15 @@ def test_ensemble(data_path: str, model_paths: List[str], threshold: Optional[fl
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
-    threshold_func = accuracy_thresholding(threshold) if threshold is not None else None
-    ensemble = NetworkEnsemble(model_paths, decision, 2, threshold_func)
+    selector = None
+    if threshold is not None:
+        selector = partial(threshold_selector, threshold=threshold)
+    if top_k is not None:
+        if threshold is not None:
+            raise Warning('Both threshold and top-k filtering requested.')
+        selector = partial(topk_selector, k=top_k)
+
+    ensemble = NetworkEnsemble(model_paths, decision, 2, accuracy_extractor, selector)
 
     evaluator = create_supervised_evaluator(ensemble, {'accuracy': Accuracy()}, device=device, non_blocking=True)
     ProgressBar(persist=False).attach(evaluator)
@@ -108,6 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default=None)
     parser.add_argument('--decision_type', nargs='*', choices=['AVG_POOLING', 'VOTING'])
     parser.add_argument('--threshold', type=float, default=None)
+    parser.add_argument('--top_k', type=int, default=None)
     parser.add_argument('--batch_size', type=int, default=50)
     parser.add_argument('--num_workers', type=int, default=4)
 
@@ -121,7 +141,7 @@ if __name__ == '__main__':
     device = torch.cuda.current_device() if torch.cuda.is_available() else None
 
     for decision_method in args.decision_type:
-        score = test_ensemble(data_path, full_paths, args.threshold, 'dev',
+        score = test_ensemble(data_path, full_paths, args.threshold, args.top_k, 'dev',
                               NetworkEnsemble.DecisionMechanism[decision_method], device, args.batch_size,
                               args.num_workers)
         print(f"Score for {decision_method}: {score:.5f}")
