@@ -107,6 +107,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str, default=None)
     parser.add_argument('--decision_type', choices=['AVG_POOLING', 'VOTING'], default='VOTING')
     parser.add_argument('--threshold', type=float, default=None)
+    parser.add_argument('--batch_size', type=int, default=50)
+    parser.add_argument('--num_workers', type=int, default=4)
 
     args = parser.parse_args()
 
@@ -118,4 +120,5 @@ if __name__ == '__main__':
     device = torch.cuda.current_device() if torch.cuda.is_available() else None
 
     score = test_ensemble(data_path, full_paths, args.threshold, 'dev',
-                          NetworkEnsemble.DecisionMechanism[args.decision_type], device)
+                          NetworkEnsemble.DecisionMechanism[args.decision_type], device, args.batch_size,
+                          args.num_workers)
