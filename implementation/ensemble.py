@@ -31,6 +31,7 @@ class NetworkEnsemble(nn.Module):
 
         paths_iterator = filter(model_filter, model_paths) if model_filter is not None else model_paths
         for path in paths_iterator:
+            print(f"Loading model from {path}")
             model_config_path = os.path.join(path, 'model.config')
             model_params_path = os.path.join(path, 'best_models')
             # If no models are present, OS error will raise:
@@ -93,7 +94,7 @@ def test_ensemble(data_path: str, model_paths: List[str], threshold: Optional[fl
 
 
 ALL_MODELS = ['htune_2_10', 'htune_2_3', 'htune_2_6', 'htune_2_9', 'htune_3_10', 'htune_3_3',
-              'htune_3_6', 'htune_3_9', 'humongous_net', 'htune_2_0', 'htune_2_11', 'htune_2_4',
+              'htune_3_6', 'htune_3_9', 'humongous_net', 'htune_2_11', 'htune_2_4',
               'htune_2_7', 'htune_3_0', 'htune_3_11', 'htune_3_4', 'htune_3_7', 'htune_2_1',
               'htune_2_2', 'htune_2_5', 'htune_2_8', 'htune_3_1', 'htune_3_2', 'htune_3_5',
               'htune_3_8', 'huge_net_cont']
