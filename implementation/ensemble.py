@@ -105,7 +105,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('experiments_dir', type=str)
     parser.add_argument('--data_path', type=str, default=None)
-    parser.add_argument('--decision_type', choices=['AVG_POOLING', 'VOTING'], default='VOTING')
+    parser.add_argument('--decision_type', nargs='*', choices=['AVG_POOLING', 'VOTING'])
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--batch_size', type=int, default=50)
     parser.add_argument('--num_workers', type=int, default=4)
@@ -119,6 +119,8 @@ if __name__ == '__main__':
 
     device = torch.cuda.current_device() if torch.cuda.is_available() else None
 
-    score = test_ensemble(data_path, full_paths, args.threshold, 'dev',
-                          NetworkEnsemble.DecisionMechanism[args.decision_type], device, args.batch_size,
-                          args.num_workers)
+    for decision_method in args.decision_type:
+        score = test_ensemble(data_path, full_paths, args.threshold, 'dev',
+                              NetworkEnsemble.DecisionMechanism[decision_method], device, args.batch_size,
+                              args.num_workers)
+        print(f"Score for {decision_method}: {score:.5f}")
