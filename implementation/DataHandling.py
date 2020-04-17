@@ -50,23 +50,30 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path, data_augmentation=True):
+    def __init__(self, path, labels_path, data_augmentation=True, is_test=False):
         super(Dataset, self).__init__()
         self.path = path
-        self.families = read_train_dataset(path)
         self.data_augmentation = data_augmentation
-        labels = pd.read_csv(labels_path)
-        connections = defaultdict(list)
-        for _, (per1, per2) in labels.iterrows():
-            connections[per1].append(per2)
-            connections[per2].append(per1)
-
+        self.is_test = is_test
         self.allpairs = []
-        for family, f_members in tqdm(self.families.items(), desc="families", total=len(self.families)):
-            for (per1_name, per1_imgs), (per2_name, per2_imgs) in filter(lambda x: x[0][0] != x[1][0],
-                                                                         product(f_members.items(), repeat=2)):
-                self.allpairs.extend([(pair, self.get_pair_label(pair, connections))
-                                      for pair in product(per1_imgs, per2_imgs)])
+
+        if self.is_test:
+            self.images = read_test_dataset(self.path)
+            for img1, img2 in filter(lambda x: x[0] != x[1], product(self.images, repeat=2)):
+                self.allpairs.append(((img1, img2), f'{img1}-{img2}'))
+        else:
+            self.families = read_train_dataset(path)
+            labels = pd.read_csv(labels_path)
+            connections = defaultdict(list)
+            for _, (per1, per2) in labels.iterrows():
+                connections[per1].append(per2)
+                connections[per2].append(per1)
+
+            for family, f_members in tqdm(self.families.items(), desc="families", total=len(self.families)):
+                for (per1_name, per1_imgs), (per2_name, per2_imgs) in filter(lambda x: x[0][0] != x[1][0],
+                                                                             product(f_members.items(), repeat=2)):
+                    self.allpairs.extend([(pair, self.get_pair_label(pair, connections))
+                                          for pair in product(per1_imgs, per2_imgs)])
 
     def __getitem__(self, item):
         pair, label = self.allpairs[item]
@@ -127,6 +134,27 @@ class KinshipDataset(Dataset):
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
         dataset.data_augmentation = data_augmentation
+        return dataset
+
+    @classmethod
+    def get_test_dataset(cls, pickled_path, raw_path=None):
+        to_save = False
+        if os.path.isfile(pickled_path):
+            with open(pickled_path, 'rb') as f:
+                dataset = pickle.load(f)
+            if not dataset.is_test:
+                raise Warning(f'Path "{pickled_path}" sent to get_test_dataset, '
+                              f'but the saved dataset is not a test set!')
+            if raw_path != dataset.path:
+                dataset.change_dir(raw_path)
+                to_save = True
+        else:
+            to_save = True
+            dataset = cls(raw_path, None, data_augmentation=False, is_test=True)
+        if to_save:
+            with open(pickled_path, 'wb+') as f:
+                pickle.dump(dataset, f)
+
         return dataset
 
 
