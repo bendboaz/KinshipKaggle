@@ -10,6 +10,7 @@ from implementation.DataHandling import KinshipDataset
 
 
 if __name__ == "__main__":
+    existing_datasets = ['train', 'dev', 'mini', 'train_strangers', 'subtrain']
     parser = ArgumentParser(description="A script to train your neural network, new one or from checkpoint.")
     parser.add_argument('data_dir', type=str,
                         help='Path to the data directory (needs to contain \'processed\' and \'raw\' directories, as'
@@ -48,9 +49,9 @@ if __name__ == "__main__":
                         help='Number of workers to load the batches.')
     parser.add_argument('--no_augmentation', action='store_false',
                         help='Specify this to not use data augmentations.')
-    parser.add_argument('--train_ds', type=str, choices=['train', 'dev', 'mini', 'subtrain'],
+    parser.add_argument('--train_ds', type=str, choices=existing_datasets,
                         help='Name of dataset to use for training.')
-    parser.add_argument('--val_ds', type=str, choices=['train', 'dev', 'mini', 'subtrain'],
+    parser.add_argument('--val_ds', type=str, choices=existing_datasets,
                         help='Name of dataset to use for validation.')
     parser.add_argument('--log_every_iters', type=int, default=1,
                         help='Frequency of loss logging for the convergence graphs.')
