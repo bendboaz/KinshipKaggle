@@ -9,7 +9,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from implementation.DataHandling import KinshipDataset
-from implementation.ensemble import NetworkEnsemble, accuracy_extractor, topk_selector, threshold_selector, ALL_MODELS
+from implementation.ensemble import NetworkEnsemble, accuracy_extractor, topk_selector, threshold_selector
+from implementation.Utils import ALL_MODELS
 
 
 def test_collate_fn(samples):

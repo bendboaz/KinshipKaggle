@@ -170,3 +170,10 @@ def create_custom_trainer(model, optimizer, loss_fn, clip_val=None,
         return output_transform(x, y, y_pred, loss)
 
     return Engine(_update)
+
+
+ALL_MODELS = ['htune_2_10', 'htune_2_3', 'htune_2_6', 'htune_2_9', 'htune_3_10', 'htune_3_3',
+              'htune_3_6', 'htune_3_9', 'humongous_net', 'htune_2_11', 'htune_2_4',
+              'htune_2_7', 'htune_3_0', 'htune_3_11', 'htune_3_4', 'htune_3_7', 'htune_2_1',
+              'htune_2_2', 'htune_2_5', 'htune_2_8', 'htune_3_1', 'htune_3_2', 'htune_3_5',
+              'htune_3_8', 'huge_net_cont']
