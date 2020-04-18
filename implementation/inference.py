@@ -54,6 +54,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('data_path', type=str)
     parser.add_argument('experiments_path', type=str)
+    parser.add_argument('--single_model', type=str, default=None)
     parser.add_argument('--decision_type', type=str, nargs='*', choices=['AVG_POOLING', 'VOTING'])
     parser.add_argument('--threshold', type=float, default=None)
     parser.add_argument('--top_k', type=int, default=None)
@@ -62,8 +63,8 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str)
 
     args = parser.parse_args()
-
-    full_paths = list(map(lambda exp: os.path.join(args.experiments_path, exp), ALL_MODELS))
+    relevant_models = ALL_MODELS if args.single_model is None else [args.single_model]
+    full_paths = list(map(lambda exp: os.path.join(args.experiments_path, exp), relevant_models))
     data_path = args.data_path
     if data_path is None:
         data_path = os.path.dirname(args.experiments_path)
