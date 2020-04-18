@@ -14,9 +14,9 @@ if __name__ == "__main__":
     parser.add_argument('data_dir', type=str,
                         help='Path to the data directory (needs to contain \'processed\' and \'raw\' directories, as'
                              'well as \'{train/dev/mini}_dataset.pkl\'')
-    parser.add_argument('--simple_fc', nargs='+', default=None, type=int,
+    parser.add_argument('--simple_fc', nargs='*', default=None, type=int,
                         help='Layer sizes for the simple branch of the network.')
-    parser.add_argument('--custom_fc', nargs='+', default=None, type=int,
+    parser.add_argument('--custom_fc', nargs='*', default=None, type=int,
                         help='Layer sizes for the custom (combinations) branch of the network.')
     parser.add_argument('--final_fc', nargs='*', default=None, type=int,
                         help='Layer sizes for the final classification.')
