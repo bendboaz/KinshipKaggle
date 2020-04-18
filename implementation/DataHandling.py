@@ -151,8 +151,7 @@ class KinshipDataset(Dataset):
             relative_start = len(self.path) + len(os.sep)
             self.allpairs = map(lambda labeled_pair: ((labeled_pair[0][0][relative_start:],
                                                        labeled_pair[0][1][relative_start:]),
-                                                      labeled_pair[1]),
-                                self.allpairs)
+                                                      labeled_pair[1]),self.allpairs)
 
         self.allpairs = list(map(lambda labeled_pair: ((labeled_pair[0][0].split(os.sep),
                                                         labeled_pair[0][1].split(os.sep)),
@@ -186,6 +185,7 @@ class KinshipDataset(Dataset):
             dataset = cls(raw_path, labels_path)
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
+
         dataset.data_augmentation = data_augmentation
         return dataset
 

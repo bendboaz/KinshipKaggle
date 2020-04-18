@@ -1,6 +1,7 @@
 import os
 from argparse import ArgumentParser
 from functools import partial
+from typing import Optional, List, Iterable
 
 import torch
 from torch.utils.data import DataLoader
@@ -16,7 +17,8 @@ def test_collate_fn(samples):
     return torch.stack(list(image_pairs), dim=0), list(names)
 
 
-def infer(data_path, models_list, decision_type, threshold, top_k, batch_size, device, num_workers):
+def infer(data_path: str, models_list: Iterable[str], decision_type: NetworkEnsemble.DecisionMechanism,
+          threshold: Optional[float], top_k: Optional[int], batch_size=50, device=None, num_workers=4):
     device = torch.device('cpu' if device is None else device)
 
     raw_test_path = os.path.join(data_path, 'raw', 'test')
