@@ -219,9 +219,9 @@ if __name__ == "__main__":
     data_directory = os.path.join(PROJECT_ROOT, "data")
     raw_train_dataset = os.path.join(PROJECT_ROOT, "data", "raw", "train")
     processed_directory = os.path.join(PROJECT_ROOT, "data", "processed")
-    csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships.csv")
+    csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships_dataset.csv")
 
-    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory, "strangers_train.pkl"),
+    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory, "train_strangers.pkl"),
                                             os.path.join(processed_directory, "train"), csv_file, with_strangers=True)
     print("Dataset length:", len(my_dataset))
     # for idx in range(len(my_dataset))[:10]:
