@@ -66,7 +66,7 @@ class KinshipClassifier(nn.Module):
             param.requires_grad = False
 
         submodules_to_unfreeze = [self.facenet.block8]
-        for param in chain(map(lambda x: x.parameters(), submodules_to_unfreeze)):
+        for param in chain(*map(lambda x: x.parameters(), submodules_to_unfreeze)):
             param.requires_grad = True
 
         self.facenet.last_linear = nn.Linear(1792, self.FACENET_OUT_SIZE)
