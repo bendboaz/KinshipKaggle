@@ -49,11 +49,13 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path, data_augmentation=True):
+    def __init__(self, path, labels_path, data_augmentation=True, do_strangers=False):
         super(Dataset, self).__init__()
         self.path = path
         self.families = read_train_dataset(path)
         self.data_augmentation = data_augmentation
+        self.with_strangers = do_strangers
+
         labels = pd.read_csv(labels_path)
         connections = defaultdict(list)
         for _, (per1, per2) in labels.iterrows():
@@ -67,32 +69,31 @@ class KinshipDataset(Dataset):
                                                                          product(f_members.items(), repeat=2)):
                 # print(f_members.items())
                 family_pairs.extend([(pair, self.get_pair_label(pair, connections))
-                                      for pair in product(per1_imgs, per2_imgs)])
-        np.random.shuffle(family_pairs)
-
-        persons_in_dataset =[]
-        for family, f_members in self.families.items():
-            persons_in_dataset.extend(f_members.values())
-        np.random.shuffle(persons_in_dataset)
-        stranger_pairs= []
-        middle = int(len(persons_in_dataset)/2)
-        half_a = persons_in_dataset[:middle].copy()
-        half_b = persons_in_dataset[middle:].copy()
-
-        for index in range(min(len(half_b), len(half_a))):
-            per1 = half_a.pop()
-            per2 = half_b.pop()
-            if per1[0][0] == per2[0][0]:
-                continue
-            if len(stranger_pairs) > len(family_pairs):
-                break
-            stranger_pairs.extend([(pair, self.get_pair_label(pair, connections))
-                                   for pair in product(per1[:], per2[:])])
-
+                                     for pair in product(per1_imgs, per2_imgs)])
 
         self.allpairs = family_pairs
-        self.allpairs.extend(stranger_pairs[:(int(len(family_pairs)/2))])
-        np.random.shuffle( self.allpairs)
+
+        if self.with_strangers:
+            persons_in_dataset = []
+            for family, f_members in self.families.items():
+                persons_in_dataset.extend(f_members.values())
+            np.random.shuffle(persons_in_dataset)
+            stranger_pairs = []
+            middle = int(len(persons_in_dataset)/2)
+            half_a = persons_in_dataset[:middle].copy()
+            half_b = persons_in_dataset[middle:].copy()
+
+            for index in range(min(len(half_b), len(half_a))):
+                per1 = half_a.pop()
+                per2 = half_b.pop()
+                if per1[0][0] == per2[0][0]:
+                    continue
+                if len(stranger_pairs) > len(family_pairs) / 2:
+                    break
+                stranger_pairs.extend([(pair, self.get_pair_label(pair, connections))
+                                       for pair in product(per1, per2)])
+
+            self.allpairs.extend(stranger_pairs)
 
     def __getitem__(self, item):
         pair, label = self.allpairs[item]
@@ -137,20 +138,30 @@ class KinshipDataset(Dataset):
         self.path = new_path
 
     @classmethod
-    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True, force_change=False):
-        if os.path.isfile(pickled_path):
+    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True, force_change=False,
+                    do_strangers=False):
+        make_new = False
+        if not os.path.isfile(pickled_path):
+            make_new = True
+
+        if not make_new:
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
-            dataset_changed = dataset.to_relative_paths(force_change)
-            if raw_path != dataset.path:
-                dataset_changed = dataset.change_dir(raw_path) or dataset_changed
-            if dataset_changed:
-                with open(pickled_path, 'wb+') as f:
-                    pickle.dump(dataset, f)
-        else:
-            dataset = cls(raw_path, labels_path)
+            if dataset.with_strangers != do_strangers:
+                print(f'Existing dataset has different strangers configuration, creating a new one')
+                make_new = True
+            else:
+                dataset_changed = dataset.to_relative_paths(force_change)
+                if raw_path != dataset.path:
+                    dataset_changed = dataset.change_dir(raw_path) or dataset_changed
+                if dataset_changed:
+                    with open(pickled_path, 'wb+') as f:
+                        pickle.dump(dataset, f)
+        if make_new:
+            dataset = cls(raw_path, labels_path, do_strangers=do_strangers)
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
+
         dataset.data_augmentation = data_augmentation
         return dataset
 
@@ -165,12 +176,12 @@ if __name__ == "__main__":
     processed_directory = os.path.join(PROJECT_ROOT, "data", "processed")
     csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships.csv")
 
-    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory,"train_dataset.pkl"),
-                                            os.path.join(processed_directory,"train"), csv_file)
+    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory, "augmenterd_train.pkl"),
+                                            os.path.join(processed_directory, "train"), csv_file)
     print("Datassdfet length:", len(my_dataset))
     for idx in range(len(my_dataset))[:10]:
         pair, label = my_dataset[idx]
-        if label ==0:
+        if label == 0:
             print(pair)
             to_pil = transforms.ToPILImage()
             to_pil(pair[0]).show()
