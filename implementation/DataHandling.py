@@ -1,9 +1,8 @@
-import os
+import os, sys
 from collections import defaultdict
 from random import seed
 from itertools import product
 import pickle
-
 import torch
 from PIL import Image
 import numpy as np
@@ -38,7 +37,7 @@ def read_train_dataset(path):
 
 
 def read_test_dataset(path):
-    return [[name] for name in os.listdir(path)]
+    return {name: os.path.join(path, name) for name in os.listdir(path)}
 
 
 class KinshipDataset(Dataset):
@@ -50,36 +49,50 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path, data_augmentation=True, is_test=False, sample_path=None):
+    def __init__(self, path, labels_path, data_augmentation=True):
         super(Dataset, self).__init__()
         self.path = path
+        self.families = read_train_dataset(path)
         self.data_augmentation = data_augmentation
-        self.is_test = is_test
-        self.allpairs = []
+        labels = pd.read_csv(labels_path)
+        connections = defaultdict(list)
+        for _, (per1, per2) in labels.iterrows():
+            connections[per1].append(per2)
+            connections[per2].append(per1)
 
-        if self.is_test:
-            if sample_path is None:
-                raise ValueError('Creating test dataset. Expected a path to sample_submission.csv, got None.')
-            sample_pairs = pd.read_csv(sample_path)['img_pair'].tolist()
+        family_pairs = []
 
-            for pair in sample_pairs:
-                img1, img2 = pair.split('-')
-                assert (os.path.isfile(os.path.join(self.path, img1))
-                        and os.path.isfile(os.path.join(self.path, img2)))
-                self.allpairs.append((([img1], [img2]), pair))
-        else:
-            self.families = read_train_dataset(path)
-            labels = pd.read_csv(labels_path)
-            connections = defaultdict(list)
-            for _, (per1, per2) in labels.iterrows():
-                connections[per1].append(per2)
-                connections[per2].append(per1)
+        for family, f_members in tqdm(self.families.items(), desc="families", total=len(self.families)):
+            for (per1_name, per1_imgs), (per2_name, per2_imgs) in filter(lambda x: x[0][0] != x[1][0],
+                                                                         product(f_members.items(), repeat=2)):
+                # print(f_members.items())
+                family_pairs.extend([(pair, self.get_pair_label(pair, connections))
+                                      for pair in product(per1_imgs, per2_imgs)])
+        np.random.shuffle(family_pairs)
 
-            for family, f_members in tqdm(self.families.items(), desc="families", total=len(self.families)):
-                for (per1_name, per1_imgs), (per2_name, per2_imgs) in filter(lambda x: x[0][0] != x[1][0],
-                                                                             product(f_members.items(), repeat=2)):
-                    self.allpairs.extend([(pair, self.get_pair_label(pair, connections))
-                                          for pair in product(per1_imgs, per2_imgs)])
+        persons_in_dataset =[]
+        for family, f_members in self.families.items():
+            persons_in_dataset.extend(f_members.values())
+        np.random.shuffle(persons_in_dataset)
+        stranger_pairs= []
+        middle = int(len(persons_in_dataset)/2)
+        half_a = persons_in_dataset[:middle].copy()
+        half_b = persons_in_dataset[middle:].copy()
+
+        for index in range(min(len(half_b), len(half_a))):
+            per1 = half_a.pop()
+            per2 = half_b.pop()
+            if per1[0][0] == per2[0][0]:
+                continue
+            if len(stranger_pairs) > len(family_pairs):
+                break
+            stranger_pairs.extend([(pair, self.get_pair_label(pair, connections))
+                                   for pair in product(per1[:], per2[:])])
+
+
+        self.allpairs = family_pairs
+        self.allpairs.extend(stranger_pairs[:(int(len(family_pairs)/2))])
+        np.random.shuffle( self.allpairs)
 
     def __getitem__(self, item):
         pair, label = self.allpairs[item]
@@ -112,8 +125,7 @@ class KinshipDataset(Dataset):
             relative_start = len(self.path) + len(os.sep)
             self.allpairs = map(lambda labeled_pair: ((labeled_pair[0][0][relative_start:],
                                                        labeled_pair[0][1][relative_start:]),
-                                                      labeled_pair[1]),
-                                self.allpairs)
+                                                      labeled_pair[1]),self.allpairs)
 
         self.allpairs = list(map(lambda labeled_pair: ((labeled_pair[0][0].split(os.sep),
                                                         labeled_pair[0][1].split(os.sep)),
@@ -142,27 +154,6 @@ class KinshipDataset(Dataset):
         dataset.data_augmentation = data_augmentation
         return dataset
 
-    @classmethod
-    def get_test_dataset(cls, pickled_path, raw_path=None, sample_path=None):
-        to_save = False
-        if os.path.isfile(pickled_path):
-            with open(pickled_path, 'rb') as f:
-                dataset = pickle.load(f)
-            if not dataset.is_test:
-                raise Warning(f'Path "{pickled_path}" sent to get_test_dataset, '
-                              f'but the saved dataset is not a test set!')
-            if raw_path != dataset.path:
-                dataset.change_dir(raw_path)
-                to_save = True
-        else:
-            to_save = True
-            dataset = cls(raw_path, None, data_augmentation=False, is_test=True, sample_path=sample_path)
-        if to_save:
-            with open(pickled_path, 'wb+') as f:
-                pickle.dump(dataset, f)
-
-        return dataset
-
 
 if __name__ == "__main__":
     RANDOM_SEED = 32
@@ -176,10 +167,10 @@ if __name__ == "__main__":
 
     my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory,"train_dataset.pkl"),
                                             os.path.join(processed_directory,"train"), csv_file)
-    print("Dataset length:", len(my_dataset))
+    print("Datassdfet length:", len(my_dataset))
     for idx in range(len(my_dataset))[:10]:
         pair, label = my_dataset[idx]
-        if label == 0:
+        if label ==0:
             print(pair)
             to_pil = transforms.ToPILImage()
             to_pil(pair[0]).show()
