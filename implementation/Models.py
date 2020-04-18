@@ -1,5 +1,6 @@
 from typing import List, Any
 from collections import OrderedDict
+from itertools import chain
 
 import torch
 from torch import nn
@@ -63,6 +64,10 @@ class KinshipClassifier(nn.Module):
         self.facenet = InceptionResnetV1(pretrained='vggface2')
         for param in self.facenet.parameters(recurse=True):
             param.requires_grad = False
+
+        submodules_to_unfreeze = [self.facenet.block8]
+        for param in chain(map(lambda x: x.parameters(), submodules_to_unfreeze)):
+            param.requires_grad = True
 
         self.facenet.last_linear = nn.Linear(1792, self.FACENET_OUT_SIZE)
         self.post_facenet_activation = nn.ReLU()
