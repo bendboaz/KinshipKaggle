@@ -168,12 +168,17 @@ class KinshipDataset(Dataset):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
-            if dataset.with_strangers and not with_strangers:
-                print('Removing strangers')
-                dataset.remove_strangers()
+
+            if not hasattr(dataset, 'with_strangers'):
+                dataset.with_strangers = False
+                dataset.family_pairs_size = len(dataset.allpairs)
+
             if (not dataset.with_strangers) and with_strangers:
                 print('Adding strangers')
                 dataset.add_strangers(dataset.get_connections(labels_path))
+            if dataset.with_strangers and not with_strangers:
+                print('Removing strangers')
+                dataset.remove_strangers()
 
             dataset_changed = dataset.to_relative_paths(force_change)
             if raw_path != dataset.path:
