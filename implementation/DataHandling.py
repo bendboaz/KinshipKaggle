@@ -223,7 +223,7 @@ class KinshipTripletDataset(Dataset):
         # self.all_people is a list containing all of the people we know
         # (as dictionary: fullname->list of images).
         self.all_people = {}
-        for _, members in self.families:
+        for _, members in self.families.items():
             self.all_people.update(**members)
 
         self.strangers = {person: [other for other in self.all_people
@@ -308,9 +308,9 @@ if __name__ == "__main__":
     data_directory = os.path.join(PROJECT_ROOT, "data")
     raw_train_dataset = os.path.join(PROJECT_ROOT, "data", "raw", "train")
     processed_directory = os.path.join(PROJECT_ROOT, "data", "processed")
-    csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships_dataset.csv")
+    csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships.csv")
 
-    my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory, "train_strangers.pkl"),
+    my_dataset = KinshipTripletDataset.get_dataset(os.path.join(data_directory, "triplet_train.pkl"),
                                             os.path.join(processed_directory, "train"), csv_file)
     print("Dataset length:", len(my_dataset))
     # for idx in range(len(my_dataset))[:10]:
