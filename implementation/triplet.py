@@ -21,6 +21,9 @@ from implementation.Utils import simple_concatenation, load_checkpoint, \
 
 def triplet_prep_batch(batch, device=None, non_blocking=False):
     anchors, positives, negatives = zip(*batch)
+    anchors = torch.stack(anchors)
+    positives = torch.stack(positives)
+    negatives = torch.stack(negatives)
     return torch.stack([
         convert_tensor(anchors, device=device, non_blocking=non_blocking),
         convert_tensor(positives, device=device, non_blocking=non_blocking),
