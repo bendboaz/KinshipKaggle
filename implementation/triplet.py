@@ -219,8 +219,8 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
     eval_engine = Engine(_eval_process_func)
 
-    Loss(lambda x: x, output_transform=lambda output: output['triplet_loss'])\
-        .attach(eval_engine, 'triplet_loss')
+    Loss(lambda x: x, output_transform=lambda output: output['aggregate_loss'])\
+        .attach(eval_engine, 'aggregate_loss')
 
     if with_classification:
         Accuracy(output_transform=lambda output: (output['y_pred'].view(-1, 2),
