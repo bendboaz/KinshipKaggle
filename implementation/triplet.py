@@ -8,7 +8,7 @@ from torch import optim
 from torch.utils.data import DataLoader, RandomSampler
 from ignite.utils import convert_tensor
 from torch.nn.utils.clip_grad import clip_grad_norm_
-from ignite.engine import Engine, create_supervised_evaluator
+from ignite.engine import Engine, Events
 from ignite.metrics import Accuracy, Loss
 from ignite.contrib.engines import common
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
@@ -192,12 +192,24 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
             return dict(triplet_loss=output[0], y_pred=y_pred, y=y)
 
     eval_engine = Engine(_eval_process_func)
+
     Loss(lambda x: x, output_transform=lambda output: output['triplet_loss'])\
         .attach(eval_engine, 'triplet_loss')
+
     if with_classification:
         Accuracy(output_transform=lambda output: (output['y_pred'].view(-1, 2),
                                                   output['y'].view(-1)))\
             .attach(eval_engine, 'accuracy')
+
+    @train_engine.on(Events.EPOCH_COMPLETED)
+    def print_eval_metrics(engine):
+        eval_engine.run(dataloaders['dev'])
+        epoch = engine.state.epoch
+        eval_metrics = eval_engine.state.metrics
+        print(f'Epoch {epoch}:', ', '.join(f'{name} = {value}' for name, value
+                                           in eval_metrics.items()))
+        del epoch
+        del eval_metrics
 
     if patience >= 0:
         common.add_early_stopping_by_val_score(patience, eval_engine, train_engine, 'accuracy')
