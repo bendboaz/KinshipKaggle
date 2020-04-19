@@ -214,7 +214,7 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
     eval_engine = Engine(_eval_process_func)
 
-    def loss_for_metric(arg1, arg2, loss=-1.0):
+    def loss_for_metric(arg1, arg2, loss=-1.0, **kwargs):
         return loss
     Loss(loss_for_metric,
          output_transform=lambda output: (output['y_pred'], output['y'], output))\
@@ -320,7 +320,7 @@ if __name__ == '__main__':
     weight_reg_coef = 1e-2
     log_every_iters = 5
     save_every_iters = 1000
-    experiment_name = 'triplet_1'
+    experiment_name = 'triplet_1_cont'
 
     triplet_train(project_path, data_path, model_kwargs,
                   with_classification=True, train_ds=train_ds, dev_ds=dev_ds,
@@ -329,4 +329,4 @@ if __name__ == '__main__':
                   data_augmentation=True, grad_clip_val=None,
                   weight_reg_coef=weight_reg_coef, log_every_iters=log_every_iters,
                   save_every_iters=save_every_iters, experiment_name=experiment_name,
-                  hof_size=1)
+                  hof_size=1, checkpoint_exp='triplet_1', checkpoint_name='training_checkpoint_3000.pth')
