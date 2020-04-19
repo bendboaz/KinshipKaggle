@@ -15,8 +15,7 @@ from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
 from implementation.Models import TripletNetwork, PairCombinationModule
 from implementation.DataHandling import KinshipTripletDataset
-from implementation.Utils import simple_concatenation, load_checkpoint, \
-    PROJECT_ROOT, feature_combination_list
+from implementation.Utils import PROJECT_ROOT, feature_combination_list
 
 
 def triplet_prep_batch(batch, device=None, non_blocking=False):
@@ -77,6 +76,31 @@ def create_triplet_trainer(model, optimizer, loss_fn, clip_val=None,
         return output_transform(batch, labels, y_pred, loss)
 
     return Engine(_update)
+
+
+def load_checkpoint(model_class, experiment_dir, checkpoint_name, device, loss_func=None, classify=True):
+    with open(os.path.join(experiment_dir, 'model.config'), 'rb') as config_file:
+        config = pickle.load(config_file)
+
+    state_dicts = torch.load(os.path.join(experiment_dir, checkpoint_name), map_location=torch.device(device))
+
+    model = model_class.load_from_config_dict(config)
+    model.load_state_dict(state_dicts['model'])
+    model.to(device)
+    optimizer = torch.optim.AdamW(filter(lambda x: x.requires_grad, model.parameters()))
+    optimizer.load_state_dict(state_dicts['optimizer'])
+
+    if loss_func is None:
+        loss_func = nn.CrossEntropyLoss()
+        loss_func.load_state_dict(state_dicts['loss_func'])
+
+    train_engine = create_triplet_trainer(model, optimizer, loss_func,
+                                          device=device, non_blocking=True, classify=classify)
+    train_engine.load_state_dict(state_dicts['train_engine'])
+    lr_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-4, max_lr=5e-3, gamma=0.9,
+                                                     last_epoch=train_engine.state.epoch, cycle_momentum=False)
+    lr_scheduler.load_state_dict(state_dicts['lr_scheduler'])
+    return model, optimizer, loss_func, lr_scheduler, train_engine
 
 
 def triplet_train(project_path, data_path, model_kwargs: Dict,
@@ -174,7 +198,8 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
         experiment_dir = os.path.join(project_path, 'experiments', checkpoint_exp)
         model, optimizer, loss_func, lr_scheduler, train_engine = (
             load_checkpoint(TripletNetwork, experiment_dir,
-                            checkpoint_name, device, loss_func=loss_func))
+                            checkpoint_name, device, loss_func=loss_func,
+                            classify=with_classification))
 
         train_engine.state.max_epochs += n_epochs
 
