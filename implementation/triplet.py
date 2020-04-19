@@ -203,11 +203,6 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
         train_engine.state.max_epochs += n_epochs
 
-    eval_metrics = {'aggregate_loss': Loss(lambda y_pred, y, kwargs: kwargs['loss'],
-                                           output_transform=lambda output: (output['y_pred'], output['y'], output))}
-    if with_classification:
-        eval_metrics['accuracy'] = Accuracy()
-
     def _eval_process_func(engine, batch):
         model.eval()
         batch = triplet_prep_batch(batch, device=device, non_blocking=True)
@@ -219,7 +214,8 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
     eval_engine = Engine(_eval_process_func)
 
-    Loss(lambda x: x, output_transform=lambda output: output['aggregate_loss'])\
+    Loss(lambda y_pred, y, kwargs: kwargs['loss'],
+         output_transform=lambda output: (output['y_pred'], output['y'], output))\
         .attach(eval_engine, 'aggregate_loss')
 
     if with_classification:
