@@ -203,6 +203,7 @@ class KinshipDataset(Dataset):
 
 
 class KinshipTripletDataset(Dataset):
+    MAX_N_TRIPLETS = int(1e6)
     def __init__(self, families_folder, labels_path=None,
                  data_augmentation=True):
         """
@@ -230,15 +231,21 @@ class KinshipTripletDataset(Dataset):
                                    if other not in self.related[person]]
                           for person in self.all_people}
         self.triplets = []
-        for person in tqdm(self.all_people, total=len(self.all_people), leave=False):
-            for positive, negative in tqdm(
-                                        product(
-                                              self.related[person],
-                                              self.strangers[person]
-                                             ),
-                                        total=(len(self.related[person])
-                                               * len(self.strangers[person])),
-                                        leave=True):
+        tqdm_stack = []
+        tqdm_stack.append(tqdm(self.all_people,
+                               total=len(self.all_people),
+                               leave=False))
+        for person in tqdm_stack[-1]:
+            tqdm_stack.append(tqdm(
+                                product(
+                                      self.related[person],
+                                      self.strangers[person]
+                                     ),
+                                total=(len(self.related[person])
+                                       * len(self.strangers[person])),
+                                leave=True
+                              ))
+            for positive, negative in tqdm_stack[-1]:
                 # The triplet format is (anchor, positive, negative).
                 if not all(map(lambda p: p in self.all_people,
                                [person, positive, negative])):
@@ -250,6 +257,10 @@ class KinshipTripletDataset(Dataset):
                         self.all_people[negative]
                     )
                 )
+                if len(self.triplets) > self.MAX_N_TRIPLETS:
+                    map(tqdm.close, tqdm_stack)
+                    break
+            tqdm_stack.pop(-1)
 
     def __getitem__(self, item):
         anchor, positive, negative = self.triplets[item]
