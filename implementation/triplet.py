@@ -260,7 +260,7 @@ def get_optimizer_and_lr_sched(optimizer_params: Dict, model_params,
 
 if __name__ == '__main__':
     project_path = PROJECT_ROOT
-    data_path = os.path.join('home', 'boaz.ben-dov', 'gdrive', 'Colab Notebooks', 'KinshipKaggle', 'data')
+    data_path = os.path.join('/', 'home', 'boaz.ben-dov', 'gdrive', 'Colab Notebooks', 'KinshipKaggle', 'data')
     feature_combinations = [feature_combination_list[idx] for idx in [0, 1, 3, 8]]
     comb_module = PairCombinationModule(feature_combinations, TripletNetwork.FACENET_OUT_SIZE)
     model_kwargs = dict(combination_module=comb_module,
