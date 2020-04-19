@@ -207,10 +207,10 @@ class TripletNetwork(KinshipClassifier):
                 triplets were classified).
         """
         output = ()
+        if input.ndim == 4:
+            # No batch dimension, manually add one:
+            input = input.unsqueeze(dim=0)
         if triplet:
-            if input.ndim == 4:
-                # Add singular batch dimsneion
-                input = input.unsqueeze(0)
             if input.shape[1] != 3:
                 raise ValueError(f'For triplet loss calculation, every batch '
                                  f'element needs to contain 3 elements. '
@@ -229,9 +229,6 @@ class TripletNetwork(KinshipClassifier):
             output = output + (triplet_loss_value,)
 
         if classify:
-            if input.ndim == 4:
-                # No batch dimension, manually add one:
-                input = input.unsqueeze(dim=0)
             if input.shape[1] == 3:
                 pairs = [
                          (input[:, 0], input[:, 1]),
@@ -245,7 +242,7 @@ class TripletNetwork(KinshipClassifier):
                 raise ValueError(f'Length of dimension 1 should be 2 or 3, '
                                  f'got {input.shape[1]}')
 
-            pairs = [torch.cat(pair, dim=1) for pair in pairs]
+            pairs = [torch.stack(pair, dim=1) for pair in pairs]
             classification_scores = map(
                 super(TripletNetwork, self).forward,
                 pairs
