@@ -13,9 +13,10 @@ from ignite.metrics import Accuracy, Loss
 from ignite.contrib.engines import common
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
-from implementation.Models import TripletNetwork
+from implementation.Models import TripletNetwork, PairCombinationModule
 from implementation.DataHandling import KinshipTripletDataset
-from implementation.Utils import simple_concatenation, load_checkpoint
+from implementation.Utils import simple_concatenation, load_checkpoint, \
+    PROJECT_ROOT, feature_combination_list
 
 
 def triplet_prep_batch(batch, device=None, non_blocking=False):
@@ -114,14 +115,17 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
                                                     data_augmentation and (partition == 'train')
                                                     )
                 for partition in raw_paths}
+    max_iteration_sizes = {'train': int(2e5), 'dev': int(1e4)}
     samplers = {partition: RandomSampler(
                                          datasets[partition],
                                          replacement=True,
-                                         num_samples=batch_size
+                                         num_samples=max_iteration_sizes[partition]
                                         )
                 for partition in datasets}
+
     dataloaders = {partition: DataLoader(
                                          datasets[partition],
+                                         sampler=samplers[partition],
                                          batch_size=batch_size,
                                          shuffle=(partition == 'train'),
                                          num_workers=num_workers,
@@ -252,3 +256,39 @@ def get_optimizer_and_lr_sched(optimizer_params: Dict, model_params,
                                                step_size_down=stepsize_down, mode='exp_range', gamma=lr_gamma,
                                                cycle_momentum=False)
     return optimizer, lr_scheduler
+
+
+if __name__ == '__main__':
+    project_path = PROJECT_ROOT
+    data_path = os.path.join('home', 'boaz.ben-dov', 'gdrive', 'Colab Notebooks', 'KinshipKaggle', 'data')
+    feature_combinations = [feature_combination_list[idx] for idx in [0, 1, 3, 8]]
+    comb_module = PairCombinationModule(feature_combinations, TripletNetwork.FACENET_OUT_SIZE)
+    model_kwargs = dict(combination_module=comb_module,
+                        combination_size=comb_module.output_size(),
+                        simple_fc_sizes=[1024], custom_fc_sizes=[1024],
+                        final_fc_sizes=[], triplet_margin=0.5,
+                        facenet_unfreeze_depth=2)
+    train_ds = 'train'
+    dev_ds = 'dev'
+    batch_size = 50
+    num_workers = 8
+    device = torch.device(torch.cuda.current_device()
+                          if torch.cuda.is_available() else 'cpu')
+    optimizer_params = dict(base_lr=1e-6, max_lr=1e-3, lr_gamma=0.8,
+                            weight_decay=1e-2, lr_decay_iters=0.6)
+    n_epochs = 10
+    patience = 3
+    data_augmentation = True
+    weight_reg_coef = 1e-2
+    log_every_iters = 5
+    save_every_iters = 1000
+    experiment_name = 'triplet_1'
+
+    triplet_train(project_path, data_path, model_kwargs,
+                  with_classification=True, train_ds=train_ds, dev_ds=dev_ds,
+                  batch_size=batch_size, num_workers=num_workers, device=device,
+                  optimizer_params=optimizer_params, n_epochs=n_epochs, patience=patience,
+                  data_augmentation=True, grad_clip_val=None,
+                  weight_reg_coef=weight_reg_coef, log_every_iters=log_every_iters,
+                  save_every_iters=save_every_iters, experiment_name=experiment_name,
+                  hof_size=1)
