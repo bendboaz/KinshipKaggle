@@ -214,7 +214,9 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
     eval_engine = Engine(_eval_process_func)
 
-    Loss(lambda y_pred, y, kwargs: kwargs['loss'],
+    def loss_for_metric(arg1, arg2, loss=-1.0):
+        return loss
+    Loss(loss_for_metric,
          output_transform=lambda output: (output['y_pred'], output['y'], output))\
         .attach(eval_engine, 'aggregate_loss')
 
