@@ -284,8 +284,8 @@ if __name__ == '__main__':
                         facenet_unfreeze_depth=2)
     train_ds = 'train'
     dev_ds = 'dev'
-    batch_size = 50
-    num_workers = 8
+    batch_size = 64
+    num_workers = 10
     device = torch.device(torch.cuda.current_device()
                           if torch.cuda.is_available() else 'cpu')
     optimizer_params = dict(base_lr=1e-6, max_lr=1e-3, lr_gamma=0.8,
