@@ -240,14 +240,16 @@ class KinshipTripletDataset(Dataset):
                                                * len(self.strangers[person])),
                                         leave=True):
                 # The triplet format is (anchor, positive, negative).
-                self.triplets.extend(filter(
-                    lambda x: all(map(lambda p: p in self.all_people, x)),
+                if not all(map(lambda p: p in self.all_people,
+                               [person, positive, negative])):
+                    continue
+                self.triplets.extend(
                     product(
                         self.all_people[person],
                         self.all_people[positive],
                         self.all_people[negative]
                     )
-                ))
+                )
 
     def __getitem__(self, item):
         anchor, positive, negative = self.triplets[item]
