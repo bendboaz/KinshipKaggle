@@ -178,7 +178,8 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
 
         train_engine.state.max_epochs += n_epochs
 
-    eval_metrics = {'aggregate_loss': Loss(lambda x: x, output_transform=lambda output: output['loss'])}
+    eval_metrics = {'aggregate_loss': Loss(lambda y_pred, y, kwargs: kwargs['loss'],
+                                           output_transform=lambda output: (output['y_pred'], output['y'], output))}
     if with_classification:
         eval_metrics['accuracy'] = Accuracy()
 
@@ -189,7 +190,7 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
             output = model(batch, triplet=True, classify=with_classification)
             y_pred = output[1] if with_classification else None
             y = torch.tensor([0, 1], device=device).repeat(batch.shape[0], 1)
-            return dict(triplet_loss=output[0], y_pred=y_pred, y=y)
+            return dict(loss=output[0], y_pred=y_pred, y=y)
 
     eval_engine = Engine(_eval_process_func)
 
