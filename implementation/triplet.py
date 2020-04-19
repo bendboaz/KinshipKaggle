@@ -127,7 +127,6 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
                                          datasets[partition],
                                          sampler=samplers[partition],
                                          batch_size=batch_size,
-                                         shuffle=(partition == 'train'),
                                          num_workers=num_workers,
                                          pin_memory=True
                                         )
