@@ -50,14 +50,13 @@ class KinshipDataset(Dataset):
             return 0
         return 1 if f"{family2}/{person2}" in connections[f"{family1}/{person1}"] else 0
 
-    def __init__(self, path, labels_path, data_augmentation=True, with_strangers=False, is_test=False, sample_path=None):
+    def __init__(self, path, labels_path, data_augmentation=True, is_test=False, sample_path=None):
         super(Dataset, self).__init__()
         self.path = path
         self.data_augmentation = data_augmentation
         self.is_test = is_test
         self.allpairs = []
 
-        self.with_strangers = with_strangers
         self.family_pairs_size = -1
 
         if self.is_test:
@@ -81,8 +80,7 @@ class KinshipDataset(Dataset):
                                           for pair in product(per1_imgs, per2_imgs)])
             self.family_pairs_size = len(self.allpairs)
 
-            if self.with_strangers:
-                self.add_strangers(connections)
+            self.add_strangers(connections)
 
     @staticmethod
     def get_connections(labels_path):
@@ -116,7 +114,6 @@ class KinshipDataset(Dataset):
         return len(self.allpairs)
 
     def add_strangers(self, connections):
-        self.with_strangers = True
         persons_in_dataset = []
         for family, f_members in self.families.items():
             persons_in_dataset.extend(f_members.values())
@@ -139,7 +136,6 @@ class KinshipDataset(Dataset):
         self.allpairs.extend(stranger_pairs)
 
     def remove_strangers(self):
-        self.with_strangers = False
         self.allpairs = self.allpairs[:self.family_pairs_size]
 
     def to_relative_paths(self, force_change=False):
@@ -163,22 +159,11 @@ class KinshipDataset(Dataset):
         self.path = new_path
 
     @classmethod
-    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True, with_strangers=False,
+    def get_dataset(cls, pickled_path, raw_path=None, labels_path=None, data_augmentation=True,
                     force_change=False):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as f:
                 dataset = pickle.load(f)
-
-            if not hasattr(dataset, 'with_strangers'):
-                dataset.with_strangers = False
-                dataset.family_pairs_size = len(dataset.allpairs)
-
-            if (not dataset.with_strangers) and with_strangers:
-                print('Adding strangers')
-                dataset.add_strangers(dataset.get_connections(labels_path))
-            if dataset.with_strangers and not with_strangers:
-                print('Removing strangers')
-                dataset.remove_strangers()
 
             dataset_changed = dataset.to_relative_paths(force_change)
             if raw_path != dataset.path:
@@ -208,7 +193,8 @@ class KinshipDataset(Dataset):
                 to_save = True
         else:
             to_save = True
-            dataset = cls(raw_path, None, data_augmentation=False, is_test=True, sample_path=sample_path)
+            dataset = cls(raw_path, None, data_augmentation=False,
+                          is_test=True, sample_path=sample_path)
         if to_save:
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
@@ -227,7 +213,7 @@ if __name__ == "__main__":
     csv_file = os.path.join(PROJECT_ROOT, "data", "raw", "train_relationships_dataset.csv")
 
     my_dataset = KinshipDataset.get_dataset(os.path.join(data_directory, "train_strangers.pkl"),
-                                            os.path.join(processed_directory, "train"), csv_file, with_strangers=True)
+                                            os.path.join(processed_directory, "train"), csv_file)
     print("Dataset length:", len(my_dataset))
     # for idx in range(len(my_dataset))[:10]:
     #     pair, label = my_dataset[idx]
