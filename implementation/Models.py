@@ -128,4 +128,137 @@ class KinshipClassifier(nn.Module):
     def load_from_config_dict(cls, dictionary):
         comb_module = PairCombinationModule.load_from_config_dict(dictionary['comb_module_dict'])
         del dictionary['comb_module_dict']
-        return cls(comb_module, **dictionary)
+        return cls(combination_module=comb_module, **dictionary)
+
+
+class TripletLoss(nn.Module):
+    """
+    Triplet loss
+    Takes embeddings of an anchor sample, a positive sample
+    and a negative sample.
+    Taken from https://github.com/adambielski/siamese-triplet
+    """
+
+    def __init__(self, margin):
+        super(TripletLoss, self).__init__()
+        self.margin = margin
+
+    def forward(self, anchor, positive, negative, size_average=True):
+        distance_positive = (anchor - positive).pow(2).sum(1)  # .pow(.5)
+        distance_negative = (anchor - negative).pow(2).sum(1)  # .pow(.5)
+        losses = F.relu(distance_positive - distance_negative + self.margin)
+        return losses.mean() if size_average else losses.sum()
+
+
+class TripletNetwork(KinshipClassifier):
+    FACENET_OUT_SIZE = 512
+
+    def __init__(self, triplet_margin=1.0, facenet_unfreeze_depth=1, **kwargs):
+        super(TripletNetwork, self).__init__(**kwargs)
+        self.unfreezing_depth = facenet_unfreeze_depth
+        self.triplet_margin = triplet_margin
+
+        self.triplet_loss = TripletLoss(self.triplet_margin)
+
+        # Freezing and unfreezing layers
+        # (overriding the unfreezing scheme in KinshipClassifier):
+        facenet_layers_order = [
+            self.facenet.last_linear,
+            self.facenet.block8,
+            self.facenet.repeat_3,
+            self.facenet.mixed_7a,
+            self.facenet.repeat_2,
+            self.facenet.mixed_6a,
+        ]
+
+        if self.unfreezing_depth > len(facenet_layers_order):
+            raise NotImplementedError(f'Can only unfreeze '
+                                      f'{len(facenet_layers_order)} layers, '
+                                      f'requested {self.unfreezing_depth}.')
+
+        for param in self.facenet.parameters():
+            param.requires_grad = False
+
+        unfrozen_submodules = facenet_layers_order[:self.unfreezing_depth]
+        for param in chain(*map(lambda x: x.parameters(),
+                                unfrozen_submodules)):
+            param.requires_grad = True
+
+    def forward(self, input: torch.Tensor, triplet=True, classify=False):
+        """
+        Forward through the network with either triplet loss,
+        classification scores or both.
+        :param input: A batch of either triplets or pairs,
+            shape (N, 3, H, W, C) or (N, 2, H, W, C).
+        :param triplet: Flag specifying whether to compute
+            triplet loss.
+            If this is set, each batch element must be
+            a triplet of images.
+        :param classify: Flag specifying whether to compute
+            classification scores for the images.
+            Can classify triplets (for each triplet t,
+                        classifies (t[0], t[1]) and (t[0], t[2])).
+            Can also classify simple pairs.
+        :return: A tuple [triplet_loss], [classification_scores]:
+            - triplet_loss is of shape () (scalar tensor).
+            - classification_scores is of shape
+                (N, 1, num_classes) or (N, 2, num_classes)
+                (depending on whether pairs or
+                triplets were classified).
+        """
+        output = ()
+        if triplet:
+            if input.shape[1] != 3:
+                raise ValueError(f'For triplet loss calculation, every batch '
+                                 f'element needs to contain 3 elements. '
+                                 f'Got {input.shape[1]}')
+
+            anchor, positive, negative = input[:, 0], input[:, 1], input[:, 2]
+            anchor_features = self.facenet(anchor)
+            positive_features = self.facenet(positive)
+            negative_features = self.facenet(negative)
+
+            triplet_loss_value = self.triplet_loss(
+                                                   anchor_features,
+                                                   positive_features,
+                                                   negative_features
+                                                  )
+            output = output + (triplet_loss_value,)
+
+        if classify:
+            if input.ndim == 4:
+                # No batch dimension, manually add one:
+                input = input.unsqueeze(dim=0)
+            if input.shape[1] == 3:
+                pairs = [
+                         (input[:, 0], input[:, 1]),
+                         (input[:, 0], input[:, 2]),
+                        ]
+            elif input.shape[1] == 2:
+                pairs = [
+                         (input[:, 0], input[:, 1])
+                        ]
+            else:
+                raise ValueError(f'Length of dimension 1 should be 2 or 3, '
+                                 f'got {input.shape[1]}')
+
+            pairs = [torch.cat(pair, dim=1) for pair in pairs]
+            classification_scores = map(
+                super(TripletNetwork, self).forward,
+                pairs
+            )
+            classification_scores = torch.cat(list(map(
+                                            lambda x: x.unsqueeze(1),
+                                            classification_scores
+                                                      )),
+                                              dim=1)
+            output = output + (classification_scores,)
+
+        return output  # ([triplet_loss], [classification_scores])
+
+    def get_configuration(self):
+        config_dict = super().get_configuration()
+        config_dict['triplet_margin'] = self.triplet_margin
+        config_dict['facenet_unfreeze_depth'] = self.unfreezing_depth
+        return config_dict
+

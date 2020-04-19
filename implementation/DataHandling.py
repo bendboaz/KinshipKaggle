@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from random import seed
-from itertools import product
+from itertools import product, chain
 import pickle
 
 import torch
@@ -199,6 +199,104 @@ class KinshipDataset(Dataset):
             with open(pickled_path, 'wb+') as f:
                 pickle.dump(dataset, f)
 
+        return dataset
+
+
+class KinshipTripletDataset(Dataset):
+    def __init__(self, families_folder, labels_path=None,
+                 data_augmentation=True):
+        """
+        :param families_folder: Path to the folder containing
+            family directories.
+        :param labels_path: Path to .csv file containing the known
+            relation pairs.
+        :param data_augmentation: Boolean flag specifying whether or
+            not to use data augmentations.
+        """
+        super(KinshipTripletDataset, self).__init__()
+        self.data_augmentation = data_augmentation
+        self.families_folder = families_folder
+        self.labels_path = labels_path
+
+        self.families = read_train_dataset(families_folder)
+        self.related = self.get_connections(labels_path)
+        # self.all_people is a list containing all of the people we know
+        # (as dictionary: fullname->list of images).
+        self.all_people = {}
+        for _, members in self.families:
+            self.all_people.update(**members)
+
+        self.strangers = {person: [other for other in self.all_people
+                                   if other not in self.related[person]]
+                          for person in self.all_people}
+        self.triplets = []
+        for person in tqdm(self.all_people, total=len(self.all_people), leave=False):
+            for positive, negative in tqdm(
+                                        product(
+                                              self.related[person],
+                                              self.strangers[person]
+                                             ),
+                                        total=(len(self.related[person])
+                                               * len(self.strangers[person])),
+                                        leave=True):
+                # The triplet format is (anchor, positive, negative).
+                self.triplets.extend(product(
+                    self.all_people[person],
+                    self.all_people[positive],
+                    self.all_people[negative]
+                ))
+
+    def __getitem__(self, item):
+        anchor, positive, negative = self.triplets[item]
+        if self.data_augmentation:
+            face_transforms = transforms.Compose([
+                transforms.ColorJitter(brightness=0, contrast=0, saturation=0, hue=0),
+                transforms.RandomHorizontalFlip(p=0.2),
+                transforms.RandomRotation([-30, 30]),
+                transforms.ToTensor(),
+                transforms.RandomErasing(p=0.3)
+            ])
+        else:
+            face_transforms = transforms.ToTensor()
+
+        anchor_img = face_transforms(Image.open(
+                             os.path.join(self.families_folder, *anchor)
+                            ))
+        positive_img = face_transforms(Image.open(
+                             os.path.join(self.families_folder, *positive)
+                            ))
+        negative_img = face_transforms(Image.open(
+            os.path.join(self.families_folder, *negative)
+        ))
+
+        return torch.stack([anchor_img, positive_img, negative_img])
+
+    def __len__(self):
+        return len(self.triplets)
+
+    @staticmethod
+    def get_connections(labels_path):
+        labels = pd.read_csv(labels_path)
+        connections = defaultdict(list)
+        for _, (per1, per2) in labels.iterrows():
+            connections[per1].append(per2)
+            connections[per2].append(per1)
+        return connections
+
+    @classmethod
+    def get_dataset(cls, pickled_path, families_path,
+                    labels_path, data_augmentation=True):
+        if os.path.isfile(pickled_path):
+            with open(pickled_path, 'rb') as pickled_ds:
+                dataset = pickle.load(pickled_ds)
+            if dataset.families_path != families_path:
+                dataset.families_path = families_path
+        else:
+            dataset = cls(families_path, labels_path=labels_path)
+            with open(pickled_path, 'wb+') as pickle_file:
+                pickle.dump(dataset, pickle_file)
+
+        dataset.data_augmentation = data_augmentation
         return dataset
 
 
