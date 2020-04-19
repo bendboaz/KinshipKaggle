@@ -204,6 +204,7 @@ class KinshipDataset(Dataset):
 
 class KinshipTripletDataset(Dataset):
     MAX_N_TRIPLETS = int(1e6)
+
     def __init__(self, families_folder, labels_path=None,
                  data_augmentation=True):
         """
@@ -305,8 +306,8 @@ class KinshipTripletDataset(Dataset):
         if os.path.isfile(pickled_path):
             with open(pickled_path, 'rb') as pickled_ds:
                 dataset = pickle.load(pickled_ds)
-            if dataset.families_path != families_path:
-                dataset.families_path = families_path
+            if dataset.families_folder != families_path:
+                dataset.families_folder = families_path
         else:
             dataset = cls(families_path, labels_path=labels_path)
             with open(pickled_path, 'wb+') as pickle_file:
