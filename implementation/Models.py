@@ -208,6 +208,9 @@ class TripletNetwork(KinshipClassifier):
         """
         output = ()
         if triplet:
+            if input.ndim == 4:
+                # Add singular batch dimsneion
+                input = input.unsqueeze(0)
             if input.shape[1] != 3:
                 raise ValueError(f'For triplet loss calculation, every batch '
                                  f'element needs to contain 3 elements. '
