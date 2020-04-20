@@ -203,7 +203,7 @@ class KinshipDataset(Dataset):
 
 
 class KinshipTripletDataset(Dataset):
-    MAX_N_TRIPLETS = int(1e6)
+    MAX_N_TRIPLETS = int(1e7)
 
     def __init__(self, families_folder, labels_path=None,
                  data_augmentation=True):
