@@ -56,7 +56,7 @@ class NetworkEnsemble(nn.Module):
             param.requires_grad = False
 
     def forward(self, input: Any, **kwargs: Any):
-        scores = torch.stack([model(input) for model in self.models], dim=0)
+        scores = torch.stack([model(input, **kwargs) for model in self.models], dim=0)
         if self.decision_mechanism == self.DecisionMechanism.VOTING:
             predictions = scores.max(-1)[1]
             prediction_scores = to_onehot(predictions, self.num_classes).sum(dim=0).transpose(0, 1).type(torch.float)
