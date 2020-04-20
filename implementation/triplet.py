@@ -184,7 +184,9 @@ def triplet_train(project_path, data_path, model_kwargs: Dict,
             :param labels: tensor of shape (N, 2).
             :return: Scalar tensor with the total loss.
             """
-            return outputs[0] + regularized_loss(outputs[1], labels)
+            return (outputs[0]
+                    + regularized_loss(outputs[1].view(-1, 2),
+                                       labels.view(-1)))
         loss_func = aggregate_loss_func
     else:
         loss_func = lambda x: x
