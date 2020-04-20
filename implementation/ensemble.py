@@ -15,7 +15,7 @@ from ignite.metrics import Accuracy
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
 from implementation.DataHandling import KinshipDataset
-from implementation.Models import KinshipClassifier
+from implementation.Models import KinshipClassifier, TripletNetwork
 from implementation.Utils import ALL_MODELS
 
 
@@ -45,7 +45,11 @@ class NetworkEnsemble(nn.Module):
             param_file = os.path.join(model_params_path, os.listdir(model_params_path)[0])
 
             with open(model_config_path, 'rb') as config_file:
-                model = KinshipClassifier.load_from_config_dict(pickle.load(config_file))
+                config_dict = pickle.load(config_file)
+                model_class = (TripletNetwork
+                               if 'triplet_margin' in config_dict
+                               else KinshipClassifier)
+                model = model_class.load_from_config_dict(config_dict)
 
             parameters = torch.load(param_file)
             model.load_state_dict(parameters)
@@ -56,7 +60,7 @@ class NetworkEnsemble(nn.Module):
             param.requires_grad = False
 
     def forward(self, input: Any, **kwargs: Any):
-        scores = torch.stack([model(input, **kwargs) for model in self.models], dim=0)
+        scores = torch.stack([model.classify_pairs(input) for model in self.models], dim=0)
         if self.decision_mechanism == self.DecisionMechanism.VOTING:
             predictions = scores.max(-1)[1]
             prediction_scores = to_onehot(predictions, self.num_classes).sum(dim=0).transpose(0, 1).type(torch.float)

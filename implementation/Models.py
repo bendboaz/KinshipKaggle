@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Union, Iterable
 from collections import OrderedDict
 from itertools import chain
 
@@ -114,6 +114,12 @@ class KinshipClassifier(nn.Module):
 
         classification = self.classification_fc(concat_vector)
         return classification
+
+    def classify_pairs(self, pairs: Union[torch.Tensor, Iterable[torch.Tensor]]):
+        if not isinstance(pairs, torch.Tensor):
+            pairs = torch.stack(list(pairs), dim=0)
+
+        return self.forward(pairs)
 
     def get_configuration(self):
         return OrderedDict(
@@ -255,6 +261,12 @@ class TripletNetwork(KinshipClassifier):
             output = output + (classification_scores,)
 
         return output  # ([triplet_loss], [classification_scores])
+
+    def classify_pairs(self, pairs: Union[torch.Tensor, Iterable[torch.Tensor]]):
+        if not isinstance(pairs, torch.Tensor):
+            pairs = torch.stack(list(pairs), dim=0)
+
+        return self.forward(pairs, triplet=False, classify=True)[0].squeeze(1)
 
     def get_configuration(self):
         config_dict = super().get_configuration()
